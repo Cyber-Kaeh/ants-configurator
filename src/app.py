@@ -52,9 +52,19 @@ def build_app():
     state = AppState()
     nav = MenuStack()
 
-    def initialize_dock():
-        print("Initializing dock...")
-        state.dock_initialized = True
+    def set_custom_res():
+        try:
+            res = input("Enter custom resolution (e.g., 2560x1440): ")
+            state.screen_size = res
+        except ValueError as e:
+            print(f"Invalid input: {e}")
+
+    def display_title():
+        return (
+            f"Display Configuration\n"
+            f"Screen Count: {state.screen_count}\n"
+            f"Screen Size: {state.screen_size}"
+        )
 
     def set_screen_count():
         try:
@@ -63,27 +73,36 @@ def build_app():
         except ValueError as e:
             print(f"Invalid input: {e}")
 
-    def set_screen_size():
-        try:
-            size = input("Enter resolution (e.g., 3840x1920): ")
-            state.screen_size = size
-        except ValueError as e:
-            print(f"Invalid input: {e}")
+    def set_screen_size(option):
+        state.screen_size = option
+        print(f"Screen size set to {option}")
+        nav.back()
 
     main_menu = Menu("Main Menu", {})
     display_config_menu = Menu("Display Configuration", {})
+    resolution_menu = Menu("Resolution Menu", {})
     displays_menu = Menu("Displays Menu", {})
     touch_menu = Menu("Touch Menu", {})
     software_vc_menu = Menu("Software VC Menu", {})
 
-    display_config_menu = Menu("Display Configuration", {
-        "1": ("Set screen count", set_screen_count),
-        "2": ("Set screen size", set_screen_size),
-        "3": ("Show current", lambda: print(f"Screen Count: {state.screen_count}, Screen Size: {state.screen_size}")),
+    resolution_menu.commands.update({
+        "1": ("Set resolution to 3840x2160", lambda: set_screen_size("3840x2160")),
+        "2": ("Set resolution to 5120x2880", lambda: set_screen_size("5120x2880")),
+        "3": ("Set resolution to 1920x1080", lambda: set_screen_size("1920x1080")),
+        "4": ("Set custom resolution", set_custom_res),
         "b": ("Back", nav.back),
+        "qq": ("Quit", exit_app),
     })
 
-    displays_menu = Menu("Displays Menu", {
+    display_config_menu.commands.update({
+        "1": ("Set screen count", set_screen_count),
+        "2": ("Set screen size", lambda: nav.push(resolution_menu)),
+        "3": ("Show current", lambda: print(f"Screen Count: {state.screen_count}, Screen Size: {state.screen_size}")),
+        "b": ("Back", nav.back),
+        "qq": ("Quit", exit_app),
+    })
+
+    displays_menu.commands.update({
         "1": ("Set frame", lambda: subprocess.run([os.path.join(SCRIPTS_DIR, "tester.sh")])),
         "b": ("Back", nav.back),
         "qq": ("Quit", exit_app),
@@ -94,7 +113,7 @@ def build_app():
         "2": ("Displays Menu", lambda: nav.push(displays_menu)),
         "3": ("Touch Menu", lambda: nav.push(touch_menu)),
         "4": ("Software VC Menu", lambda: nav.push(software_vc_menu)),
-        "5": ("Initialize Dock", initialize_dock),
+        "5": ("Initialize Dock", lambda: print("Dock initialized.")),
         "qq": ("Quit", exit_app),
     })
 
