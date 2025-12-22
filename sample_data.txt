@@ -1,0 +1,10 @@
+ls /dev/tty.usb*
+/dev/tty.usbserial-FT87UZNB0	/dev/tty.usbserial-FT87UZNB1
+
+
+python /Local/scripts/serial/integralSerial.py 	/dev/tty.usbserial-serial_id reboot
+
+python /Local/scripts/serial/integralSerial.py	/dev/tty.usbserial-serial_id command
+
+python /Local/scripts/integralStatus.py --serial pasteSerialID --interrogate
+
