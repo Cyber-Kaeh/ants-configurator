@@ -2,6 +2,7 @@ from menu import Menu
 import sys
 import subprocess
 import os
+import re
 from ascii_art import ASCII_ART
 
 SCRIPTS_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../scripts"))
@@ -129,13 +130,40 @@ def build_app():
             return
         subprocess.run([os.path.join(SCRIPTS_DIR, "initialize_dock.sh"), str(state.screen_placement), state.dock_names])
 
+    def test_reading_output():
+        result = subprocess.run(['ls', '/dev/tty.usb*'], capture_output=True, text=True)
+        # output = result.stdout
+        output = "tty.usb-serial-ABC1234560       tty.usb-serial-ABC1234561"
+
+        # Find all matches
+        matches = re.findall(r'tty\.usb-serial-([A-Za-z0-9]+)', output)
+        print(matches)
+
+        # if more than one match, try to reboot integral on each
+        if len(matches) > 1:
+            for serial in matches:
+                print(f"Rebooting Integral with serial: {serial}")
+                subprocess.run([os.path.join(SCRIPTS_DIR, "reboot_integral.sh"), serial])
+                
+                # read output of reboot command and search for "reboot ok"
+
+                # if reboot ok found, store {serial} in state and break
+                # else continue to next serial
+        elif len(matches) == 1:
+            serial = matches[0]
+            # save serial to state    
+
 
     # Initialize menus and sub-menus
     main_menu = Menu("Main Menu", {}, startup_art=ASCII_ART)
     display_config_menu = Menu("Display Configuration", {})
     resolution_menu = Menu("Resolution Menu", {})
     displays_menu = Menu("Displays Menu", {})
+    display_serial_menu = Menu("Display Serial Commands", {})
+    integral_menu = Menu("Integral Menu", {})
     touch_menu = Menu("Touch Menu", {})
+    uppd_menu = Menu("UPPD Menu", {})
+    hid_menu = Menu("HID Menu", {})
     software_vc_menu = Menu("Software VC Menu", {})
     dock_menu = Menu("Dock Menu", {})
 
@@ -143,6 +171,7 @@ def build_app():
     dock_menu.commands.update({
         "1": ("Set Names Array", lambda: set_dock_names()),
         "2": ("Initialize Dock", lambda: initialize_dock()),
+        "t": ("Toggle TTMenu", lambda: subprocess.run([os.path.join(SCRIPTS_DIR, "toggle_ttmenu.sh")])),
         "b": ("Back", nav.back),
         "qq": ("Quit", exit_app),
     })
@@ -151,6 +180,23 @@ def build_app():
         "1": ("Enable Zoom", lambda: print("Zoom enabled.")),
         "2": ("Enable Teams", lambda: print("Teams enabled.")),
         "3": ("Enable both", lambda: print("Zoom and Teams enabled.")),
+        "t": ("Toggle TTMenu", lambda: subprocess.run([os.path.join(SCRIPTS_DIR, "toggle_ttmenu.sh")])),
+        "b": ("Back", nav.back),
+        "qq": ("Quit", exit_app),
+    })
+
+    uppd_menu.commands.update({
+        "1": ("Set Defaults", lambda: subprocess.run([os.path.join(SCRIPTS_DIR, "tester.sh")])),
+        "2": ("Avocor E Defaults", print("Setting Avocor E defaults...")),
+        "3": ("Avocor F Defaults", print("Setting Avocor F defaults...")),
+        "t": ("Toggle TTMenu", lambda: subprocess.run([os.path.join(SCRIPTS_DIR, "toggle_ttmenu.sh")])),
+        "b": ("Back", nav.back),
+        "qq": ("Quit", exit_app),
+    })
+
+    hid_menu.commands.update({
+        "1": ("Set Defaults", lambda: subprocess.run([os.path.join(SCRIPTS_DIR, "tester.sh")])),
+        "t": ("Toggle TTMenu", lambda: subprocess.run([os.path.join(SCRIPTS_DIR, "toggle_ttmenu.sh")])),
         "b": ("Back", nav.back),
         "qq": ("Quit", exit_app),
     })
@@ -158,6 +204,26 @@ def build_app():
     touch_menu.commands.update({
         "1": ("UPPD", lambda: nav.push(uppd_menu)),
         "2": ("HID", lambda: nav.push(hid_menu)),
+        "t": ("Toggle TTMenu", lambda: subprocess.run([os.path.join(SCRIPTS_DIR, "toggle_ttmenu.sh")])),
+        "b": ("Back", nav.back),
+        "qq": ("Quit", exit_app),
+    })
+
+    integral_menu.commands.update({
+        "1": ("Find Integral Serial #", lambda: subprocess.run([os.path.join(SCRIPTS_DIR, "tester.sh")])),
+        "2": ("Set crontab", lambda: subprocess.run([os.path.join(SCRIPTS_DIR, "tester.sh")])),
+        "3": ("Interrogate Integral", lambda: interrogate_integral),
+        "4": ("Reboot Integral", lambda: reboot_integral),
+        "5": ("Set 4K Mirror", lambda: set_4k_mirror),
+        "b": ("Back", nav.back),
+        "qq": ("Quit", exit_app),
+        "11": ("Test reading output", lambda: test_reading_output())
+    })
+
+    display_serial_menu.commands.update({
+        "1": ("Find USB Serial #", lambda: subprocess.run([os.path.join(SCRIPTS_DIR, "tester.sh")])),
+        "2": ("Set Defaults", lambda: subprocess.run([os.path.join(SCRIPTS_DIR, "tester.sh")])),
+        "3": ("Test Power On", lambda: subprocess.run([os.path.join(SCRIPTS_DIR, "tester.sh")])),
         "b": ("Back", nav.back),
         "qq": ("Quit", exit_app),
     })
@@ -167,6 +233,7 @@ def build_app():
         "2": ("Set resolution to 5120x2880", lambda: set_screen_size("5120x2880")),
         "3": ("Set resolution to 1920x1080", lambda: set_screen_size("1920x1080")),
         "4": ("Set custom resolution", set_custom_res),
+        "t": ("Toggle TTMenu", lambda: subprocess.run([os.path.join(SCRIPTS_DIR, "toggle_ttmenu.sh")])),
         "b": ("Back", nav.back),
         "qq": ("Quit", exit_app),
     })
@@ -175,6 +242,7 @@ def build_app():
         "1": ("Set screen count", set_screen_count),
         "2": ("Set screen size", lambda: nav.push(resolution_menu)),
         "3": ("Show current", lambda: print(f"Screen Count: {state.screen_count}, Screen Size: {state.screen_size}")),
+        "t": ("Toggle TTMenu", lambda: subprocess.run([os.path.join(SCRIPTS_DIR, "toggle_ttmenu.sh")])),
         "b": ("Back", nav.back),
         "qq": ("Quit", exit_app),
     })
@@ -182,6 +250,8 @@ def build_app():
     displays_menu.commands.update({
         # "1": ("Set frame", lambda: subprocess.run([os.path.join(SCRIPTS_DIR, "tester.sh")])),
         "1": ("Set frame", lambda: calculate_frame()),
+        "2": ("Serial Commands Menu", lambda: nav.push(display_serial_menu)),
+        "t": ("Toggle TTMenu", lambda: subprocess.run([os.path.join(SCRIPTS_DIR, "toggle_ttmenu.sh")])),
         "b": ("Back", nav.back),
         "qq": ("Quit", exit_app),
     })
@@ -189,9 +259,12 @@ def build_app():
     main_menu.commands.update({
         "1": ("Display Configuration", lambda: nav.push(display_config_menu)),
         "2": ("Displays Menu", lambda: nav.push(displays_menu)),
-        "3": ("Touch Menu", lambda: nav.push(touch_menu)),
-        "4": ("Software VC Menu", lambda: nav.push(software_vc_menu)),
-        "5": ("Dock Menu", lambda: nav.push(dock_menu)),
+        "3": ("Integral Menu", lambda: nav.push(integral_menu)),
+        "4": ("Touch Menu", lambda: nav.push(touch_menu)),
+        "5": ("Software VC Menu", lambda: nav.push(software_vc_menu)),
+        "6": ("Dock Menu", lambda: nav.push(dock_menu)),
+        "7": ("Other Defaults", lambda: nav.push(other_defaults_menu)),
+        "t": ("Toggle TTMenu", lambda: subprocess.run([os.path.join(SCRIPTS_DIR, "toggle_ttmenu.sh")])),
         "qq": ("Quit", exit_app),
     })
 
