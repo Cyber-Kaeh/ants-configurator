@@ -16,6 +16,7 @@ class AppState:
         self.screen_size = None
         self.screen_placement = None
         self.dock_names = None
+        self.integrals - {}
         self.integral_serial = None
         self.integral_firmware = None
         self.display_serial = None
@@ -79,6 +80,16 @@ class AppState:
         if version is not None and version.strip() == "":
             raise ValueError("No integral firmware version set")
         self._integral_firmware = version
+
+    @property
+    def integrals(self):
+        return self._integrals
+
+    @integrals.setter
+    def integrals(self, value):
+        if not isinstance(value, dict):
+            raise ValueError("Integrals must be a dictionary")
+        self._integrals = value
 
     @property
     def display_serial(self):
@@ -189,7 +200,7 @@ def build_app():
             return
         
         try:
-            script_path = os.path.join(LOCAL_SERIAL_DIR, "integralSerial.py")
+            script_path = os.path.join(SCRIPTS_DIR, "integralSerial.py")
             print(f"Serial ID: {state.integral_serial}")
             result = subprocess.run(
                 [sys.executable, script_path, f"/dev/tty.usbserial-{state.integral_serial}", "reboot"],
@@ -239,12 +250,16 @@ def build_app():
         matches = re.findall(r'/dev/tty\.usbserial-([A-Za-z0-9]+)', output)
         print("Matches: ",matches)
 
-        # if more than one match, try to reboot integral on each
-        if len(matches) > 1:
-            for serial in matches:
-                print(f"Checking for Integral with serial: {serial}")
+        integrals = {}
+        if len(matches) == 1:
+            serial = matches[0]
+            # save serial to state
+            state.integral_serial = serial
+        elif len(matches) > 1:
+            for idx, serial in enumerate(matches, 1):
+                script_path = os.path.join(SCRIPTS_DIR, "integralSerial.py")
                 serial_result = subprocess.run(
-                    [sys.executable, f"/Local/scripts/serial/integralSerial.py", f"/dev/tty.usbserial-{serial}", "getVersion"],
+                    [sys.executable, script_path, f"/dev/tty.usbserial-{serial}", "getVersion"],
                     capture_output=True, text=True)
                 # read output of getVersion command and search for "HdFury"
                 get_version_output = serial_result.stdout
@@ -253,18 +268,11 @@ def build_app():
                     state.integral_serial = serial
 
                     version_match = re.search(r"ver FW: ([\d.]+)", get_version_output)
-                    if version_match:
-                        state.integral_firmware = version_match.group(1)
-                        print(f"Firmware version: {state.integral_firmware}")
-                    break
+                    firmware = version_match.group(1) if version_match else None
+                    integrals[str(idx)] = {"serial": serial, "firmware": firmware}
                 else:
                     print(f"No Integral found for serial: {serial}")
-        elif len(matches) == 1:
-            serial = matches[0]
-            # save serial to state
-            state.integral_serial = serial
-        elif len(matches) > 2:
-            print("More than 2 USB serials found. Manual configuration needed.")
+            state.integrals = integrals
         else:
             print("No serial USB found.")
             
