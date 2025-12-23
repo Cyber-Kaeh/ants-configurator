@@ -116,6 +116,17 @@ def build_app():
         with open("app_state.json", "w") as f:
             json.dump(state.__dict__, f)
 
+    def load_last_configs():
+        try:
+            with open("app_state.json", "r") as f:
+                data = json.load(f)
+                state.__dict__.update(data)
+                print("Last configurations loaded.")
+        except FileNotFoundError:
+            print("No saved configurations found.")
+        except json.JSONDecodeError:
+            print("Error decoding saved configurations.")
+
     def calculate_frame():
         try:
             res = state.screen_size
@@ -125,7 +136,9 @@ def build_app():
                 return
             width, height = map(int, res.split('x'))
             total_width = width * count
-            state.screen_placement = total_width
+            state.screen_placement = str(total_width)
+            # Should probably move this to its own function.
+            subprocess.run([os.path.join(SCRIPTS_DIR, "set_frame.sh"), state.screen_placement])
             print(f"Calculated frame size: {total_width}x{height}")
         except Exception as e:
             print(f"Error calculating frame: {e}")
@@ -366,6 +379,7 @@ def build_app():
         "7": ("Other Defaults", lambda: nav.push(other_defaults_menu)),
         "t": ("Toggle TTMenu", lambda: subprocess.run([os.path.join(SCRIPTS_DIR, "toggle_ttmenu.sh")])),
         "ss": ("Save Configurations", write_state),
+        "b4": ("Load Last Configs", load_last_configs),
         "qq": ("Quit", exit_app),
     })
 
