@@ -54,6 +54,26 @@ class AppState:
             raise ValueError("No Dock names set")
         self._dock_names = names
 
+    @property
+    def integral_serial(self):
+        return self._integral_serial
+    
+    @integral_serial.setter
+    def integral_serial(self, id: str):
+        if id is not None and id.strip() == "":
+            raise ValueError("No integral serial ID set")
+        self._integral_serial = id
+
+    @property
+    def display_serial(self):
+        return self._display_serial
+    
+    @display_serial.setter
+    def display_serial(self, id: str):
+        if id is not None and id.strip() == "":
+            raise ValueError("No display serial ID set")
+        self._display_serial = id
+
 
 class MenuStack:
     def __init__(self):
@@ -132,8 +152,8 @@ def build_app():
 
     def test_reading_output():
         result = subprocess.run(['ls', '/dev/tty.usb*'], capture_output=True, text=True)
-        # output = result.stdout
-        output = "tty.usb-serial-ABC1234560       tty.usb-serial-ABC1234561"
+        output = result.stdout
+        # output = "tty.usb-serial-ABC1234560       tty.usb-serial-ABC1234561"
 
         # Find all matches
         matches = re.findall(r'tty\.usb-serial-([A-Za-z0-9]+)', output)
@@ -143,16 +163,22 @@ def build_app():
         if len(matches) > 1:
             for serial in matches:
                 print(f"Rebooting Integral with serial: {serial}")
-                subprocess.run([os.path.join(SCRIPTS_DIR, "reboot_integral.sh"), serial])
-                
+                serial_result = subprocess.run([f"python /Local/scripts/serial/integralSerial.py /dev/tty.usbserial-{serial} read"], capture_output=True, text=True)
                 # read output of reboot command and search for "reboot ok"
-
-                # if reboot ok found, store {serial} in state and break
-                # else continue to next serial
+                reboot_output = serial_result.stdout
+                if "reboot ok" in reboot_output:
+                    print(f"Reboot successful for serial: {serial}")
+                    state.integral_serial = serial
+                    break
+                else:
+                    print(f"Reboot failed for serial: {serial}")
         elif len(matches) == 1:
             serial = matches[0]
-            # save serial to state    
-
+            # save serial to state
+            state.integral_serial = serial
+        else:
+            print("No serial USB found.")
+            
 
     # Initialize menus and sub-menus
     main_menu = Menu("Main Menu", {}, startup_art=ASCII_ART)

@@ -1,5 +1,24 @@
 ls /dev/tty.usb*
-/dev/tty.usbserial-FT87UZNB0	/dev/tty.usbserial-FT87UZNB1
+/dev/tty.usbserial-FT8BDBHY0	/dev/tty.usbserial-FT8BDBHY1
+
+
+python /Local/scripts/serial/integralSerial.py /dev/tty.usbserial-FT8BDBHY0 reboot
+reboot on
+
+
+python /Local/scripts/serial/integralSerial.py /dev/tty.usbserial-FT8BDBHY1 reboot
+
+
+python /Local/scripts/integralStatus.py --serial /dev/tty.usbserial-FT8BDBHY0 --interrogate
+VERSION :: HdFury Integral2 ver FW: 2.53.2.53
+SCALING :: scale none
+INPUT PORT :: input bot
+INP0 SIGNAL :: rx0 no signal
+INP1 SIGNAL :: rx1 not active
+OUT0 SIGNAL :: tx0 off or not connected
+OUT1 SIGNAL :: tx1 off or not connected
+OUT0 EDID :: tx0sink EDID not available
+OUT1 EDID :: tx1sink EDID not available
 
 
 python /Local/scripts/serial/integralSerial.py 	/dev/tty.usbserial-serial_id reboot
