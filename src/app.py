@@ -136,9 +136,9 @@ def build_app():
                 return
             width, height = map(int, res.split('x'))
             total_width = width * count
-            state.screen_placement = str(total_width)
+            state.screen_placement = total_width
             # Should probably move this to its own function.
-            subprocess.run([os.path.join(SCRIPTS_DIR, "set_frame.sh"), state.screen_placement])
+            subprocess.run([os.path.join(SCRIPTS_DIR, "set_frame.sh"), str(state.screen_placement)])
             print(f"Calculated frame size: {total_width}x{height}")
         except Exception as e:
             print(f"Error calculating frame: {e}")
@@ -356,13 +356,14 @@ def build_app():
         "1": ("Set screen count", set_screen_count),
         "2": ("Set screen size", lambda: nav.push(resolution_menu)),
         "3": ("Show current", lambda: print(f"Screen Count: {state.screen_count}, Screen Size: {state.screen_size}")),
+        "4": ("Set frame", lambda: calculate_frame()),
         "t": ("Toggle TTMenu", lambda: subprocess.run([os.path.join(SCRIPTS_DIR, "toggle_ttmenu.sh")])),
         "b": ("Back", nav.back),
         "qq": ("Quit", exit_app),
     })
 
     displays_menu.commands.update({
-        "1": ("Set frame", lambda: calculate_frame()),
+        "1": ("Displays Configuration", lambda: nav.push(display_config_menu)),
         "2": ("Serial Commands Menu", lambda: nav.push(display_serial_menu)),
         "t": ("Toggle TTMenu", lambda: subprocess.run([os.path.join(SCRIPTS_DIR, "toggle_ttmenu.sh")])),
         "b": ("Back", nav.back),
@@ -370,13 +371,12 @@ def build_app():
     })
 
     main_menu.commands.update({
-        "1": ("Display Configuration", lambda: nav.push(display_config_menu)),
-        "2": ("Displays Menu", lambda: nav.push(displays_menu)),
-        "3": ("Integral Menu", lambda: nav.push(integral_menu)),
-        "4": ("Touch Menu", lambda: nav.push(touch_menu)),
-        "5": ("Software VC Menu", lambda: nav.push(software_vc_menu)),
-        "6": ("Dock Menu", lambda: nav.push(dock_menu)),
-        "7": ("Other Defaults", lambda: nav.push(other_defaults_menu)),
+        "1": ("Displays Menu", lambda: nav.push(displays_menu)),
+        "2": ("Integral Menu", lambda: nav.push(integral_menu)),
+        "3": ("Touch Menu", lambda: nav.push(touch_menu)),
+        "4": ("Software VC Menu", lambda: nav.push(software_vc_menu)),
+        "5": ("Dock Menu", lambda: nav.push(dock_menu)),
+        "6": ("Other Defaults", lambda: nav.push(other_defaults_menu)),
         "t": ("Toggle TTMenu", lambda: subprocess.run([os.path.join(SCRIPTS_DIR, "toggle_ttmenu.sh")])),
         "ss": ("Save Configurations", write_state),
         "b4": ("Load Last Configs", load_last_configs),
