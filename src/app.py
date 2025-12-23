@@ -8,6 +8,7 @@ from ascii_art import ASCII_ART
 
 SCRIPTS_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../scripts"))
 LOCAL_SCRIPTS_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "/Local/scripts"))
+LOCAL_SERIAL_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "/Local/scripts/serial"))
 
 class AppState:
     def __init__(self):
@@ -16,6 +17,7 @@ class AppState:
         self.screen_placement = None
         self.dock_names = None
         self.integral_serial = None
+        self.integral_firmware = None
         self.display_serial = None
 
     @property
@@ -67,6 +69,16 @@ class AppState:
         if id is not None and id.strip() == "":
             raise ValueError("No integral serial ID set")
         self._integral_serial = id
+
+    @property
+    def integral_firmware(self):
+        return self._integral_firmware
+
+    @integral_firmware.setter
+    def integral_firmware(self, version: str):
+        if version is not None and version.strip() == "":
+            raise ValueError("No integral firmware version set")
+        self._integral_firmware = version
 
     @property
     def display_serial(self):
@@ -158,6 +170,29 @@ def build_app():
             return
         subprocess.run([os.path.join(SCRIPTS_DIR, "initialize_dock.sh"), str(state.screen_placement), state.dock_names])
 
+    def reboot_integral():
+        if state.integral_serial is None:
+            print("Error: Integral serial ID not set. Run '1) Find Integral Serial #' first.")
+            return
+        
+        try:
+            script_path = os.path.join(LOCAL_SERIAL_DIR, "integralSerial.py")
+            print(f"Serial ID: {state.integral_serial}")
+            result = subprocess.run(
+                [sys.executable, script_path, f"/dev/tty.usbserial-{state.integral_serial}", "reboot"],
+                capture_output=True, text=True
+            )
+            if result.returncode == 0:
+                print("Reboot command sent successfully.")
+            else:
+                print(f"Error: Reboot command failed with return code {result.returncode}")
+                print("Error Output:")
+                print(result.stderr)
+        except FileNotFoundError:
+            print(f"Error: Script not found at {script_path}. Please check the path.")
+        except Exception as e:
+            print(f"Error during reboot: {e}")
+
     def interrogate_integral():
         if state.integral_serial is None:
             print("Error: Integral serial ID not set. Run '1) Find Integral Serial #' first.")
@@ -165,12 +200,12 @@ def build_app():
 
         try:
             script_path = os.path.join(LOCAL_SCRIPTS_DIR, "integralStatus.py")
-            print(f"serial ID: {state.integral_serial}")
+            print(f"Serial ID: {state.integral_serial}")
+            print("Be patient... Interrogate... is... slloooww...b")
             result = subprocess.run(
                 [sys.executable, script_path, "--serial", f"/dev/tty.usbserial-{state.integral_serial}", "--interrogate"],
                 capture_output=True, text=True
             )
-            print(f'result: {result}')
             if result.returncode == 0:
                 print("Interrogate Output:")
                 print(result.stdout)
@@ -194,18 +229,23 @@ def build_app():
         # if more than one match, try to reboot integral on each
         if len(matches) > 1:
             for serial in matches:
-                print(f"Rebooting Integral with serial: {serial}")
+                print(f"Checking for Integral with serial: {serial}")
                 serial_result = subprocess.run(
-                    [sys.executable, f"/Local/scripts/serial/integralSerial.py", f"/dev/tty.usbserial-{serial}", "reboot"],
+                    [sys.executable, f"/Local/scripts/serial/integralSerial.py", f"/dev/tty.usbserial-{serial}", "getVersion"],
                     capture_output=True, text=True)
-                # read output of reboot command and search for "reboot on"
-                reboot_output = serial_result.stdout
-                if "reboot on" in reboot_output:
-                    print(f"Reboot successful for serial: {serial}")
+                # read output of getVersion command and search for "HdFury"
+                get_version_output = serial_result.stdout
+                if "HdFury" in get_version_output:
+                    print(f"Integral found for serial: {serial}")
                     state.integral_serial = serial
+
+                    version_match = re.search(r"ver FW: ([\d.]+)", get_version_output)
+                    if version_match:
+                        state.integral_firmware = version_match.group(1)
+                        print(f"Firmware version: {state.integral_firmware}")
                     break
                 else:
-                    print(f"Reboot failed for serial: {serial}")
+                    print(f"No Integral found for serial: {serial}")
         elif len(matches) == 1:
             serial = matches[0]
             # save serial to state
@@ -275,11 +315,10 @@ def build_app():
         "1": ("Find Integral Serial #", lambda: get_integral_serial_id()),
         "2": ("Set crontab", lambda: subprocess.run([os.path.join(SCRIPTS_DIR, "tester.sh")])),
         "3": ("Interrogate Integral", lambda: interrogate_integral()),
-        "4": ("Reboot Integral", lambda: reboot_integral),
-        "5": ("Set 4K Mirror", lambda: set_4k_mirror),
+        "4": ("Reboot Integral", lambda: reboot_integral()),
+        "5": ("Set 4K Mirror", lambda: subprocess.run([os.path.join(SCRIPTS_DIR, "set_4k_mirror.sh"), state.integral_serial])),
         "b": ("Back", nav.back),
         "qq": ("Quit", exit_app),
-        "11": ("Test reading output", lambda: test_reading_output())
     })
 
     display_serial_menu.commands.update({
@@ -310,7 +349,6 @@ def build_app():
     })
 
     displays_menu.commands.update({
-        # "1": ("Set frame", lambda: subprocess.run([os.path.join(SCRIPTS_DIR, "tester.sh")])),
         "1": ("Set frame", lambda: calculate_frame()),
         "2": ("Serial Commands Menu", lambda: nav.push(display_serial_menu)),
         "t": ("Toggle TTMenu", lambda: subprocess.run([os.path.join(SCRIPTS_DIR, "toggle_ttmenu.sh")])),
