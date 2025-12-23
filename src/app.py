@@ -151,19 +151,21 @@ def build_app():
         subprocess.run([os.path.join(SCRIPTS_DIR, "initialize_dock.sh"), str(state.screen_placement), state.dock_names])
 
     def test_reading_output():
-        result = subprocess.run(['ls', '/dev/tty.usb*'], capture_output=True, text=True)
+        result = subprocess.run(['ls /dev/tty.usb*'], shell=True, capture_output=True, text=True)
         output = result.stdout
         # output = "tty.usb-serial-ABC1234560       tty.usb-serial-ABC1234561"
 
         # Find all matches
-        matches = re.findall(r'tty\.usb-serial-([A-Za-z0-9]+)', output)
-        print(matches)
+        matches = re.findall(r'/dev/tty\.usbserial-([A-Za-z0-9]+)', output)
+        print("Matches: ",matches)
 
         # if more than one match, try to reboot integral on each
         if len(matches) > 1:
             for serial in matches:
                 print(f"Rebooting Integral with serial: {serial}")
-                serial_result = subprocess.run([f"python /Local/scripts/serial/integralSerial.py /dev/tty.usbserial-{serial} read"], capture_output=True, text=True)
+                serial_result = subprocess.run(
+                    [sys.executable, f"/Local/scripts/serial/integralSerial.py", f"/dev/tty.usbserial-{serial}", "read"], 
+                    capture_output=True, text=True)
                 # read output of reboot command and search for "reboot ok"
                 reboot_output = serial_result.stdout
                 if "reboot ok" in reboot_output:
