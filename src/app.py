@@ -3,9 +3,11 @@ import sys
 import subprocess
 import os
 import re
+import json
 from ascii_art import ASCII_ART
 
 SCRIPTS_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../scripts"))
+LOCAL_SCRIPTS_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "/Local/scripts"))
 
 class AppState:
     def __init__(self):
@@ -13,6 +15,8 @@ class AppState:
         self.screen_size = None
         self.screen_placement = None
         self.dock_names = None
+        self.integral_serial = None
+        self.display_serial = None
 
     @property
     def screen_count(self):
@@ -96,6 +100,10 @@ def build_app():
     state = AppState()
     nav = MenuStack()
 
+    def write_state():
+        with open("app_state.json", "w") as f:
+            json.dump(state.__dict__, f)
+
     def calculate_frame():
         try:
             res = state.screen_size
@@ -150,10 +158,34 @@ def build_app():
             return
         subprocess.run([os.path.join(SCRIPTS_DIR, "initialize_dock.sh"), str(state.screen_placement), state.dock_names])
 
-    def test_reading_output():
+    def interrogate_integral():
+        if state.integral_serial is None:
+            print("Error: Integral serial ID not set. Run '1) Find Integral Serial #' first.")
+            return
+
+        try:
+            script_path = os.path.join(LOCAL_SCRIPTS_DIR, "integralStatus.py")
+            print(f"serial ID: {state.integral_serial}")
+            result = subprocess.run(
+                [sys.executable, script_path, "--serial", f"/dev/tty.usbserial-{state.integral_serial}", "--interrogate"],
+                capture_output=True, text=True
+            )
+            print(f'result: {result}')
+            if result.returncode == 0:
+                print("Interrogate Output:")
+                print(result.stdout)
+            else:
+                print(f"Error: Interrogation failed with return code {result.returncode}")
+                print("Error Output:")
+                print(result.stderr)
+        except FileNotFoundError:
+            print(f"Error: Script not found at {script_path}. Please check the path.")
+        except Exception as e:
+            print(f"Error during interrogation: {e}")
+
+    def get_integral_serial_id():
         result = subprocess.run(['ls /dev/tty.usb*'], shell=True, capture_output=True, text=True)
         output = result.stdout
-        # output = "tty.usb-serial-ABC1234560       tty.usb-serial-ABC1234561"
 
         # Find all matches
         matches = re.findall(r'/dev/tty\.usbserial-([A-Za-z0-9]+)', output)
@@ -164,11 +196,11 @@ def build_app():
             for serial in matches:
                 print(f"Rebooting Integral with serial: {serial}")
                 serial_result = subprocess.run(
-                    [sys.executable, f"/Local/scripts/serial/integralSerial.py", f"/dev/tty.usbserial-{serial}", "read"], 
+                    [sys.executable, f"/Local/scripts/serial/integralSerial.py", f"/dev/tty.usbserial-{serial}", "reboot"],
                     capture_output=True, text=True)
-                # read output of reboot command and search for "reboot ok"
+                # read output of reboot command and search for "reboot on"
                 reboot_output = serial_result.stdout
-                if "reboot ok" in reboot_output:
+                if "reboot on" in reboot_output:
                     print(f"Reboot successful for serial: {serial}")
                     state.integral_serial = serial
                     break
@@ -178,6 +210,8 @@ def build_app():
             serial = matches[0]
             # save serial to state
             state.integral_serial = serial
+        elif len(matches) > 2:
+            print("More than 2 USB serials found. Manual configuration needed.")
         else:
             print("No serial USB found.")
             
@@ -238,9 +272,9 @@ def build_app():
     })
 
     integral_menu.commands.update({
-        "1": ("Find Integral Serial #", lambda: subprocess.run([os.path.join(SCRIPTS_DIR, "tester.sh")])),
+        "1": ("Find Integral Serial #", lambda: get_integral_serial_id()),
         "2": ("Set crontab", lambda: subprocess.run([os.path.join(SCRIPTS_DIR, "tester.sh")])),
-        "3": ("Interrogate Integral", lambda: interrogate_integral),
+        "3": ("Interrogate Integral", lambda: interrogate_integral()),
         "4": ("Reboot Integral", lambda: reboot_integral),
         "5": ("Set 4K Mirror", lambda: set_4k_mirror),
         "b": ("Back", nav.back),
@@ -293,6 +327,7 @@ def build_app():
         "6": ("Dock Menu", lambda: nav.push(dock_menu)),
         "7": ("Other Defaults", lambda: nav.push(other_defaults_menu)),
         "t": ("Toggle TTMenu", lambda: subprocess.run([os.path.join(SCRIPTS_DIR, "toggle_ttmenu.sh")])),
+        "ss": ("Save Configurations", write_state),
         "qq": ("Quit", exit_app),
     })
 

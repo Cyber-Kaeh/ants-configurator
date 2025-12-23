@@ -27,3 +27,10 @@ python /Local/scripts/serial/integralSerial.py	/dev/tty.usbserial-serial_id comm
 
 python /Local/scripts/integralStatus.py --serial pasteSerialID --interrogate
 
+
+python /Local/scripts/serial/integralSerial.py /dev/tty.usbserial-FT8BDBHY0 getVersion
+HdFury Integral2 ver FW: 2.53.2.53
+
+python /Local/scripts/serial/integralSerial.py /dev/tty.usbserial-FT8BDBHY0 getScale
+scale none
+
