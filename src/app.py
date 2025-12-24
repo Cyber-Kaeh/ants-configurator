@@ -16,7 +16,7 @@ class AppState:
         self.screen_size = None
         self.screen_placement = None
         self.dock_names = None
-        self.integrals - {}
+        self.integrals = {}
         self.integral_serial = None
         self.integral_firmware = None
         self.display_serial = None
@@ -195,12 +195,11 @@ def build_app():
         subprocess.run([os.path.join(SCRIPTS_DIR, "initialize_dock.sh"), str(state.screen_placement), state.dock_names])
 
     def reboot_integral():
-        if state.integral_serial is None:
-            print("Error: Integral serial ID not set. Run '1) Find Integral Serial #' first.")
+        script_path = os.path.join(SCRIPTS_DIR, "integralSerial.py")
+        if len(state.integrals) == 0 or state.integral_serial is None:
+            print("Error: No Integral serial ID set. Run '1) Find Integral Serial #' first.")
             return
-        
-        try:
-            script_path = os.path.join(SCRIPTS_DIR, "integralSerial.py")
+        elif len(state.integrals) == 1:
             print(f"Serial ID: {state.integral_serial}")
             result = subprocess.run(
                 [sys.executable, script_path, f"/dev/tty.usbserial-{state.integral_serial}", "reboot"],
@@ -212,10 +211,26 @@ def build_app():
                 print(f"Error: Reboot command failed with return code {result.returncode}")
                 print("Error Output:")
                 print(result.stderr)
-        except FileNotFoundError:
-            print(f"Error: Script not found at {script_path}. Please check the path.")
-        except Exception as e:
-            print(f"Error during reboot: {e}")
+        elif len(state.integrals) > 1:
+            print("Multiple Integrals detected. Please select which one to reboot:")
+            for key, integral in state.integrals.items():
+                print(f"{key}) Serial: {integral['serial']}, Firmware: {integral['firmware']}")
+            choice = input("Enter the number of the Integral to reboot: ")
+            if choice in state.integrals:
+                selected_serial = state.integrals[choice]['serial']
+                print(f"Serial ID: {selected_serial}")
+                result = subprocess.run(
+                    [sys.executable, script_path, f"/dev/tty.usbserial-{selected_serial}", "reboot"],
+                    capture_output=True, text=True
+                )
+                if result.returncode == 0:
+                    print("Reboot command sent successfully.")
+                else:
+                    print(f"Error: Reboot command failed with return code {result.returncode}")
+                    print("Error Output:")
+                    print(result.stderr)
+            else:
+                print("Invalid selection.")
 
     def interrogate_integral():
         if state.integral_serial is None:
@@ -251,29 +266,23 @@ def build_app():
         print("Matches: ",matches)
 
         integrals = {}
-        if len(matches) == 1:
-            serial = matches[0]
-            # save serial to state
-            state.integral_serial = serial
-        elif len(matches) > 1:
-            for idx, serial in enumerate(matches, 1):
-                script_path = os.path.join(SCRIPTS_DIR, "integralSerial.py")
-                serial_result = subprocess.run(
-                    [sys.executable, script_path, f"/dev/tty.usbserial-{serial}", "getVersion"],
-                    capture_output=True, text=True)
-                # read output of getVersion command and search for "HdFury"
-                get_version_output = serial_result.stdout
-                if "HdFury" in get_version_output:
-                    print(f"Integral found for serial: {serial}")
-                    state.integral_serial = serial
-
-                    version_match = re.search(r"ver FW: ([\d.]+)", get_version_output)
-                    firmware = version_match.group(1) if version_match else None
-                    integrals[str(idx)] = {"serial": serial, "firmware": firmware}
-                else:
-                    print(f"No Integral found for serial: {serial}")
-            state.integrals = integrals
-        else:
+        for idx, serial in enumerate(matches, 1):
+            script_path = os.path.join(SCRIPTS_DIR, "integralSerial.py")
+            serial_result = subprocess.run(
+                [sys.executable, script_path, f"/dev/tty.usbserial-{serial}", "getVersion"],
+                capture_output=True, text=True)
+            # read output of getVersion command and search for "HdFury"
+            get_version_output = serial_result.stdout
+            if "HdFury" in get_version_output:
+                version_match = re.search(r"ver FW: ([\d.]+)", get_version_output)
+                firmware = version_match.group(1) if version_match else None
+                integrals[str(idx)] = {"serial": serial, "firmware": firmware}
+                print(f"Integral {idx}: serial={serial}, firmware={firmware}")
+            else:
+                print(f"No Integral found for serial: {serial}")
+        
+        state.integrals = integrals
+        if not integrals:
             print("No serial USB found.")
             
 
@@ -284,6 +293,7 @@ def build_app():
     displays_menu = Menu("Displays Menu", {})
     display_serial_menu = Menu("Display Serial Commands", {})
     integral_menu = Menu("Integral Menu", {})
+    # multiple_integral_menu = Menu("Multiple Integrals Menu", {})
     touch_menu = Menu("Touch Menu", {})
     uppd_menu = Menu("UPPD Menu", {})
     hid_menu = Menu("HID Menu", {})
@@ -341,6 +351,15 @@ def build_app():
         "b": ("Back", nav.back),
         "qq": ("Quit", exit_app),
     })
+
+    # multiple_integral_menu.commands.update({
+    #     "1": ("Set crontabs", lambda: subprocess.run([os.path.join(SCRIPTS_DIR, "tester.sh")])),
+    #     "2": ("Reboot Integral", lambda: reboot_integralmulti(number=1)),
+    #     "3": ("Interrogate Integral", lambda: interrogate_integral_multi(number=1)),
+    #     "4": ("Set 4K Mirror", lambda: set_4k_multi(number=1)),
+    #     "b": ("Back", nav.back),
+    #     "qq": ("Quit", exit_app),
+    # })
 
     display_serial_menu.commands.update({
         "1": ("Find USB Serial #", lambda: subprocess.run([os.path.join(SCRIPTS_DIR, "tester.sh")])),
