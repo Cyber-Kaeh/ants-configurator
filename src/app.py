@@ -17,8 +17,8 @@ class AppState:
         self.screen_placement = None
         self.dock_names = None
         self.integrals = {}
-        self.integral_serial = None
-        self.integral_firmware = None
+        # self.integral_serial = None
+        # self.integral_firmware = None
         self.display_serial = None
 
     @property
@@ -61,25 +61,25 @@ class AppState:
             raise ValueError("No Dock names set")
         self._dock_names = names
 
-    @property
-    def integral_serial(self):
-        return self._integral_serial
+    # @property
+    # def integral_serial(self):
+    #     return self._integral_serial
     
-    @integral_serial.setter
-    def integral_serial(self, id: str):
-        if id is not None and id.strip() == "":
-            raise ValueError("No integral serial ID set")
-        self._integral_serial = id
+    # @integral_serial.setter
+    # def integral_serial(self, id: str):
+    #     if id is not None and id.strip() == "":
+    #         raise ValueError("No integral serial ID set")
+    #     self._integral_serial = id
 
-    @property
-    def integral_firmware(self):
-        return self._integral_firmware
+    # @property
+    # def integral_firmware(self):
+    #     return self._integral_firmware
 
-    @integral_firmware.setter
-    def integral_firmware(self, version: str):
-        if version is not None and version.strip() == "":
-            raise ValueError("No integral firmware version set")
-        self._integral_firmware = version
+    # @integral_firmware.setter
+    # def integral_firmware(self, version: str):
+    #     if version is not None and version.strip() == "":
+    #         raise ValueError("No integral firmware version set")
+    #     self._integral_firmware = version
 
     @property
     def integrals(self):
@@ -196,13 +196,13 @@ def build_app():
 
     def reboot_integral():
         script_path = os.path.join(SCRIPTS_DIR, "integralSerial.py")
-        if len(state.integrals) == 0 or state.integral_serial is None:
+        if len(state.integrals) == 0:
             print("Error: No Integral serial ID set. Run '1) Find Integral Serial #' first.")
             return
         elif len(state.integrals) == 1:
-            print(f"Serial ID: {state.integral_serial}")
+            print(f"Serial ID: {state.integrals['1']['serial']}")
             result = subprocess.run(
-                [sys.executable, script_path, f"/dev/tty.usbserial-{state.integral_serial}", "reboot"],
+                [sys.executable, script_path, f"/dev/tty.usbserial-{state.integrals['1']['serial']}", "reboot"],
                 capture_output=True, text=True
             )
             if result.returncode == 0:
