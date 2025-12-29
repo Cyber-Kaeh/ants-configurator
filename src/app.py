@@ -202,9 +202,9 @@ def build_app():
         if selected_key:
             serial = state.integrals[selected_key]['serial']
             print(f"Rebooting Integral with Serial ID: {serial}")
-            # script_path = os.path.join(LOCAL_SERIAL_DIR, "reboot_integral.py")
+            script_path = os.path.join(LOCAL_SERIAL_DIR, "integralSerial.py")
             result = subprocess.run(
-                [sys.executable, LOCAL_SERIAL_DIR, f"/dev/tty.usbserial-{serial}", "reboot"],
+                [sys.executable, script_path, f"/dev/tty.usbserial-{serial}", "reboot"],
                 capture_output=True, text=True
             )
             if result.returncode == 0:
@@ -250,9 +250,9 @@ def build_app():
         if selected_key:
             serial = state.integrals[selected_key]['serial']
             print(f"Interrogating Integral with Serial ID: {serial}")
-            # script_path = os.path.join(SCRIPTS_DIR, "integralStatus.py")
+            script_path = os.path.join(SCRIPTS_DIR, "integralStatus.py")
             result = subprocess.run(
-                [sys.executable, LOCAL_SCRIPTS_DIR, "--serial", f"/dev/tty.usbserial-{serial}", "--interrogate"],
+                [sys.executable, script_path, "--serial", f"/dev/tty.usbserial-{serial}", "--interrogate"],
                 capture_output=True, text=True
             )
             if result.returncode == 0:
