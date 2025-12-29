@@ -184,7 +184,7 @@ def build_app():
             print("Multiple Integrals detected. Please select which one to reboot:")
             for key, integral in state.integrals.items():
                 print(f"{key}) Serial: {integral['serial']}, Firmware: {integral['firmware']}")
-            choice = input("Enter the number of the Integral to reboot: ")
+            choice = input("Enter the number of the Integral: ")
             if choice in state.integrals:
                 return choice
             else:
@@ -198,44 +198,68 @@ def build_app():
             subprocess.run([os.path.join(SCRIPTS_DIR, "set_4k_mirror.sh"), serial])
 
     def reboot_integral():
-        script_path = os.path.join(SCRIPTS_DIR, "integralSerial.py")
-        if len(state.integrals) == 0:
-            print("Error: No Integral serial ID set. Run '1) Find Integral Serial #' first.")
-            return
-        elif len(state.integrals) == 1:
-            print(f"Serial ID: {state.integrals['1']['serial']}")
+        selected_key = select_integral()
+        if selected_key:
+            serial = state.integrals[selected_key]['serial']
+            print(f"Rebooting Integral with Serial ID: {serial}")
+            subprocess.run([os.path.join(SCRIPTS_DIR, "reboot_integral.sh"), serial])
+
+        # script_path = os.path.join(SCRIPTS_DIR, "integralSerial.py")
+        # if len(state.integrals) == 0:
+        #     print("Error: No Integral serial ID set. Run '1) Find Integral Serial #' first.")
+        #     return
+        # elif len(state.integrals) == 1:
+        #     print(f"Serial ID: {state.integrals['1']['serial']}")
+        #     result = subprocess.run(
+        #         [sys.executable, script_path, f"/dev/tty.usbserial-{state.integrals['1']['serial']}", "reboot"],
+        #         capture_output=True, text=True
+        #     )
+        #     if result.returncode == 0:
+        #         print("Reboot command sent successfully.")
+        #     else:
+        #         print(f"Error: Reboot command failed with return code {result.returncode}")
+        #         print("Error Output:")
+        #         print(result.stderr)
+        # elif len(state.integrals) > 1:
+        #     print("Multiple Integrals detected. Please select which one to reboot:")
+        #     for key, integral in state.integrals.items():
+        #         print(f"{key}) Serial: {integral['serial']}, Firmware: {integral['firmware']}")
+        #     choice = input("Enter the number of the Integral to reboot: ")
+        #     if choice in state.integrals:
+        #         selected_serial = state.integrals[choice]['serial']
+        #         print(f"Serial ID: {selected_serial}")
+        #         result = subprocess.run(
+        #             [sys.executable, script_path, f"/dev/tty.usbserial-{selected_serial}", "reboot"],
+        #             capture_output=True, text=True
+        #         )
+        #         if result.returncode == 0:
+        #             print("Reboot command sent successfully.")
+        #         else:
+        #             print(f"Error: Reboot command failed with return code {result.returncode}")
+        #             print("Error Output:")
+        #             print(result.stderr)
+        #     else:
+        #         print("Invalid selection.")
+
+    def interrogate_integral():
+        selected_key = select_integral()
+        if selected_key:
+            serial = state.integrals[selected_key]['serial']
+            print(f"Interrogating Integral with Serial ID: {serial}")
+            script_path = os.path.join(SCRIPTS_DIR, "integralStatus.py")
             result = subprocess.run(
-                [sys.executable, script_path, f"/dev/tty.usbserial-{state.integrals['1']['serial']}", "reboot"],
+                [sys.executable, script_path, "--serial", f"/dev/tty.usbserial-{serial}", "--interrogate"],
                 capture_output=True, text=True
             )
             if result.returncode == 0:
-                print("Reboot command sent successfully.")
+                print("Interrogate Output:")
+                print(result.stdout)
             else:
-                print(f"Error: Reboot command failed with return code {result.returncode}")
+                print(f"Error: Interrogate failed with return code {result.returncode}")
                 print("Error Output:")
                 print(result.stderr)
-        elif len(state.integrals) > 1:
-            print("Multiple Integrals detected. Please select which one to reboot:")
-            for key, integral in state.integrals.items():
-                print(f"{key}) Serial: {integral['serial']}, Firmware: {integral['firmware']}")
-            choice = input("Enter the number of the Integral to reboot: ")
-            if choice in state.integrals:
-                selected_serial = state.integrals[choice]['serial']
-                print(f"Serial ID: {selected_serial}")
-                result = subprocess.run(
-                    [sys.executable, script_path, f"/dev/tty.usbserial-{selected_serial}", "reboot"],
-                    capture_output=True, text=True
-                )
-                if result.returncode == 0:
-                    print("Reboot command sent successfully.")
-                else:
-                    print(f"Error: Reboot command failed with return code {result.returncode}")
-                    print("Error Output:")
-                    print(result.stderr)
-            else:
-                print("Invalid selection.")
+            return
 
-    def interrogate_integral():
         script_path = os.path.join(SCRIPTS_DIR, "integralStatus.py")
         if len(state.integrals) == 0:
             print("Error: No Integral serial ID set. Run '1) Find Integral Serial #' first.")
@@ -364,7 +388,7 @@ def build_app():
         "2": ("Set crontab", lambda: subprocess.run([os.path.join(SCRIPTS_DIR, "tester.sh")])),
         "3": ("Interrogate Integral", lambda: interrogate_integral()),
         "4": ("Reboot Integral", lambda: reboot_integral()),
-        "5": ("Set 4K Mirror", lambda: set_4k_mirror()) #lambda: subprocess.run([os.path.join(SCRIPTS_DIR, "set_4k_mirror.sh"), state.integral_serial])),
+        "5": ("Set 4K Mirror", lambda: set_4k_mirror()),
         "b": ("Back", nav.back),
         "qq": ("Quit", exit_app),
     })
