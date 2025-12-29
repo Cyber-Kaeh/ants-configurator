@@ -202,14 +202,18 @@ def build_app():
         if selected_key:
             serial = state.integrals[selected_key]['serial']
             print(f"Rebooting Integral with Serial ID: {serial}")
-            subprocess.run([os.path.join(SCRIPTS_DIR, "reboot_integral.sh"), serial])
+            script_path = os.path.join(SCRIPTS_DIR, "reboot_integral.py")
+            result = subprocess.run(
+                [sys.executable, script_path, f"/dev/tty.usbserial-{serial}", "reboot"],
+                capture_output=True, text=True
+            )
+            if result.returncode == 0:
+                print("Reboot command sent successfully.")
+            else:
+                print(f"Error: Reboot command failed with return code {result.returncode}")
+                print("Error Output:")
+                print(result.stderr)
 
-        # script_path = os.path.join(SCRIPTS_DIR, "integralSerial.py")
-        # if len(state.integrals) == 0:
-        #     print("Error: No Integral serial ID set. Run '1) Find Integral Serial #' first.")
-        #     return
-        # elif len(state.integrals) == 1:
-        #     print(f"Serial ID: {state.integrals['1']['serial']}")
         #     result = subprocess.run(
         #         [sys.executable, script_path, f"/dev/tty.usbserial-{state.integrals['1']['serial']}", "reboot"],
         #         capture_output=True, text=True
@@ -260,44 +264,44 @@ def build_app():
                 print(result.stderr)
             return
 
-        script_path = os.path.join(SCRIPTS_DIR, "integralStatus.py")
-        if len(state.integrals) == 0:
-            print("Error: No Integral serial ID set. Run '1) Find Integral Serial #' first.")
-            return
-        elif len(state.integrals) == 1:
-            print(f"Serial ID: {state.integrals['1']['serial']}")
-            result = subprocess.run(
-                [sys.executable, script_path, "--serial", f"/dev/tty.usbserial-{state.integrals['1']['serial']}", "--interrogate"],
-                capture_output=True, text=True
-            )
-            if result.returncode == 0:
-                print("Interrogate Output:")
-                print(result.stdout)
-            else:
-                print(f"Error: Interrogate failed with return code {result.returncode}")
-                print("Error Output:")
-                print(result.stderr)
-        elif len(state.integrals) > 1:
-            print("Multiple Integrals detected. Please select which one to reboot:")
-            for key, integral in state.integrals.items():
-                print(f"{key}) Serial: {integral['serial']}, Firmware: {integral['firmware']}")
-            choice = input("Enter the number of the Integral to interrogate: ")
-            if choice in state.integrals:
-                selected_serial = state.integrals[choice]['serial']
-                print(f"Serial ID: {selected_serial}")
-                result = subprocess.run(
-                    [sys.executable, script_path, "--serial", f"/dev/tty.usbserial-{selected_serial}", "--interrogate"],
-                    capture_output=True, text=True
-                )
-                if result.returncode == 0:
-                    print("Interrogate Output:")
-                    print(result.stdout)
-                else:
-                    print(f"Error: Interrogate failed with return code {result.returncode}")
-                    print("Error Output:")
-                    print(result.stderr)
-            else:
-                print("Invalid selection.")
+        # script_path = os.path.join(SCRIPTS_DIR, "integralStatus.py")
+        # if len(state.integrals) == 0:
+        #     print("Error: No Integral serial ID set. Run '1) Find Integral Serial #' first.")
+        #     return
+        # elif len(state.integrals) == 1:
+        #     print(f"Serial ID: {state.integrals['1']['serial']}")
+        #     result = subprocess.run(
+        #         [sys.executable, script_path, "--serial", f"/dev/tty.usbserial-{state.integrals['1']['serial']}", "--interrogate"],
+        #         capture_output=True, text=True
+        #     )
+        #     if result.returncode == 0:
+        #         print("Interrogate Output:")
+        #         print(result.stdout)
+        #     else:
+        #         print(f"Error: Interrogate failed with return code {result.returncode}")
+        #         print("Error Output:")
+        #         print(result.stderr)
+        # elif len(state.integrals) > 1:
+        #     print("Multiple Integrals detected. Please select which one to reboot:")
+        #     for key, integral in state.integrals.items():
+        #         print(f"{key}) Serial: {integral['serial']}, Firmware: {integral['firmware']}")
+        #     choice = input("Enter the number of the Integral to interrogate: ")
+        #     if choice in state.integrals:
+        #         selected_serial = state.integrals[choice]['serial']
+        #         print(f"Serial ID: {selected_serial}")
+        #         result = subprocess.run(
+        #             [sys.executable, script_path, "--serial", f"/dev/tty.usbserial-{selected_serial}", "--interrogate"],
+        #             capture_output=True, text=True
+        #         )
+        #         if result.returncode == 0:
+        #             print("Interrogate Output:")
+        #             print(result.stdout)
+        #         else:
+        #             print(f"Error: Interrogate failed with return code {result.returncode}")
+        #             print("Error Output:")
+        #             print(result.stderr)
+        #     else:
+        #         print("Invalid selection.")
 
     def get_integral_serial_id():
         result = subprocess.run(['ls /dev/tty.usb*'], shell=True, capture_output=True, text=True)
