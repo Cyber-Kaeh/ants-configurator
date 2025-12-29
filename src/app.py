@@ -270,7 +270,7 @@ def build_app():
 
         # Find all matches
         matches = re.findall(r'/dev/tty\.usbserial-([A-Za-z0-9]+)', output)
-        print("Matches: ",matches)
+        print("Serial Matches: ",matches)
 
         integrals = {}
         for idx, serial in enumerate(matches, 1):
@@ -355,7 +355,7 @@ def build_app():
         "4": ("Set 4K Mirror", lambda: set_4k_mirror()),
         "5": ("Example crontabs", lambda: subprocess.run([
             os.path.join(SCRIPTS_DIR, "integral_crontabs.sh"),
-            state.integrals.get('1', {}).get('serial', 'XXXXXXXX')
+            state.integrals[next(iter(state.integrals))]['serial'] if state.integrals else 'XXXXXXXX'
         ])),
         "b": ("Back", nav.back),
         "ss": ("Save Configurations", write_state),
