@@ -172,6 +172,31 @@ def build_app():
             return
         subprocess.run([os.path.join(SCRIPTS_DIR, "initialize_dock.sh"), str(state.screen_placement), state.dock_names])
 
+    def select_integral():
+        if not state.integrals:
+            print("Error: No Integral serial ID set. Run '1) Find Integral Serial #' first.")
+            return None
+        elif len(state.integrals) == 1:
+            key = next(iter(state.integrals))
+            print(f"Only one Integral found: Serial ID: {state.integrals[key]['serial']}")
+            return key
+        else:
+            print("Multiple Integrals detected. Please select which one to reboot:")
+            for key, integral in state.integrals.items():
+                print(f"{key}) Serial: {integral['serial']}, Firmware: {integral['firmware']}")
+            choice = input("Enter the number of the Integral to reboot: ")
+            if choice in state.integrals:
+                return choice
+            else:
+                print("Invalid selection.")
+
+    def set_4k_mirror():
+        selected_key = select_integral()
+        if selected_key:
+            serial = state.integrals[selected_key]['serial']
+            print(f"Setting 4K mirror for Serial ID: {serial}")
+            subprocess.run([os.path.join(SCRIPTS_DIR, "set_4k_mirror.sh"), serial])
+
     def reboot_integral():
         script_path = os.path.join(SCRIPTS_DIR, "integralSerial.py")
         if len(state.integrals) == 0:
@@ -339,7 +364,7 @@ def build_app():
         "2": ("Set crontab", lambda: subprocess.run([os.path.join(SCRIPTS_DIR, "tester.sh")])),
         "3": ("Interrogate Integral", lambda: interrogate_integral()),
         "4": ("Reboot Integral", lambda: reboot_integral()),
-        "5": ("Set 4K Mirror", lambda: subprocess.run([os.path.join(SCRIPTS_DIR, "set_4k_mirror.sh"), state.integral_serial])),
+        "5": ("Set 4K Mirror", lambda: set_4k_mirror()) #lambda: subprocess.run([os.path.join(SCRIPTS_DIR, "set_4k_mirror.sh"), state.integral_serial])),
         "b": ("Back", nav.back),
         "qq": ("Quit", exit_app),
     })
