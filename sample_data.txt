@@ -34,3 +34,27 @@ HdFury Integral2 ver FW: 2.53.2.53
 python /Local/scripts/serial/integralSerial.py /dev/tty.usbserial-FT8BDBHY0 getScale
 scale none
 
+
+Teams and Zoom all defaults, single 4k:
+
+defaults write com.t1visions.TTMenu screenUpdateOnAllChanges 1
+defaults write com.t1visions.TTMenu desktopMoveAllWindows 1
+defaults write com.t1visions.TTMenu ThinkHubZoom 1
+defaults write com.t1visions.TTMenu ThinkHubTeams 1
+defaults write com.t1v.automate VCCaptureRect "3840,0,1280,720"
+
+
+Magewell all defaults:
+
+defaults write com.t1visions.TTMenu deviceSettings /Users/t1user/Documents/deviceSettings.plist
+defaults write com.t1visions.TTMenu captureSessionDefaultAudioVolume 0.75
+defaults write com.t1visions.TTMenu thinkHubEnableTouchBack 1
+
+UPPD defaults
+
+defaults write com.t1visions.TTMenu MTManagerSearchPriority UPDD
+defaults write com.t1visions.TTMenu thinkHubEnableRemoteKeyboardAction 1
+/usr/local/bin/upddutils nodevice set minimum_notify_level 2
+
+# Add this crontab to disable UPDD Commander so that touch events pass straight to TTMenu
+@reboot /bin/sleep 80; /usr/local/bin/upddprocesses stop -c
