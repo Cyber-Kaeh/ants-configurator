@@ -213,38 +213,7 @@ def build_app():
                 print(f"Error: Reboot command failed with return code {result.returncode}")
                 print("Error Output:")
                 print(result.stderr)
-
-        #     result = subprocess.run(
-        #         [sys.executable, script_path, f"/dev/tty.usbserial-{state.integrals['1']['serial']}", "reboot"],
-        #         capture_output=True, text=True
-        #     )
-        #     if result.returncode == 0:
-        #         print("Reboot command sent successfully.")
-        #     else:
-        #         print(f"Error: Reboot command failed with return code {result.returncode}")
-        #         print("Error Output:")
-        #         print(result.stderr)
-        # elif len(state.integrals) > 1:
-        #     print("Multiple Integrals detected. Please select which one to reboot:")
-        #     for key, integral in state.integrals.items():
-        #         print(f"{key}) Serial: {integral['serial']}, Firmware: {integral['firmware']}")
-        #     choice = input("Enter the number of the Integral to reboot: ")
-        #     if choice in state.integrals:
-        #         selected_serial = state.integrals[choice]['serial']
-        #         print(f"Serial ID: {selected_serial}")
-        #         result = subprocess.run(
-        #             [sys.executable, script_path, f"/dev/tty.usbserial-{selected_serial}", "reboot"],
-        #             capture_output=True, text=True
-        #         )
-        #         if result.returncode == 0:
-        #             print("Reboot command sent successfully.")
-        #         else:
-        #             print(f"Error: Reboot command failed with return code {result.returncode}")
-        #             print("Error Output:")
-        #             print(result.stderr)
-        #     else:
-        #         print("Invalid selection.")
-
+                
     def interrogate_integral():
         selected_key = select_integral()
         if selected_key:
@@ -291,7 +260,29 @@ def build_app():
         state.integrals = integrals
         if not integrals:
             print("No serial USB found.")
-            
+
+    def get_display_serial_id(choice):
+        result = subprocess.run(['ls /dev/tty.usb*'], shell=True, capture_output=True, text=True)
+        output = result.stdout
+        matches = re.findall(r'/dev/tty\.usbserial-([A-Za-z0-9]+)', output)
+        # serial_command = f"/usr/local/bin/python /Local/scripts/serial/{choice}.py $(ls /dev/tty.usbserial-{match}) GetPower"
+        if not matches:
+            print(f"No matching serial found for {choice}")
+            return
+
+        for serial in matches:
+            script_path = os.path.join(SCRIPTS_DIR, f"{choice}.py")
+            serial_result = subprocess.run(
+                [sys.executable, script_path, f"/dev/tty.usbserial-{serial}", "GetPower"],
+                capture_output=True, text=True
+            )
+            get_power_output = serial_result.stdout
+            if "Display is ON" in get_power_output:
+                state.display_serial = serial
+                print(f"Display Serial ID set to: {serial}")
+            else:
+                print(f"No display found for serial: {serial}")
+
 
     # Initialize menus and sub-menus
     main_menu = Menu("Main Menu", {}, startup_art=ASCII_ART)
@@ -299,6 +290,7 @@ def build_app():
     resolution_menu = Menu("Resolution Menu", {})
     displays_menu = Menu("Displays Menu", {})
     display_serial_menu = Menu("Display Serial Commands", {})
+    find_display_serial_menu = Menu("Select Display", {})
     integral_menu = Menu("Integral Menu", {})
     touch_menu = Menu("Touch Menu", {})
     uppd_menu = Menu("UPPD Menu", {})
@@ -363,9 +355,18 @@ def build_app():
     })
 
     display_serial_menu.commands.update({
-        "1": ("Find USB Serial #", lambda: subprocess.run([os.path.join(SCRIPTS_DIR, "tester.sh")])),
+        "1": ("Find USB Serial #", lambda: nav.push(find_display_serial_menu)),
         "2": ("Set Defaults", lambda: subprocess.run([os.path.join(SCRIPTS_DIR, "tester.sh")])),
         "3": ("Test Power On", lambda: subprocess.run([os.path.join(SCRIPTS_DIR, "tester.sh")])),
+        "b": ("Back", nav.back),
+        "qq": ("Quit", exit_app),
+    })
+
+    find_display_serial_menu.commands.update({
+        "1": ("Avocor E50", lambda: get_display_serial_id("AvocorE50")),
+        "2": ("Avocor F50", lambda: get_display_serial_id("AvocorF50")),
+        "3": ("Avocor G", lambda: subprocess.run([os.path.join(SCRIPTS_DIR, "tester.sh")])),
+        "4": ("Avocor H", lambda: subprocess.run([os.path.join(SCRIPTS_DIR, "tester.sh")])),
         "b": ("Back", nav.back),
         "qq": ("Quit", exit_app),
     })
