@@ -265,13 +265,12 @@ def build_app():
         result = subprocess.run(['ls /dev/tty.usb*'], shell=True, capture_output=True, text=True)
         output = result.stdout
         matches = re.findall(r'/dev/tty\.usbserial-([A-Za-z0-9]+)', output)
-        # serial_command = f"/usr/local/bin/python /Local/scripts/serial/{choice}.py $(ls /dev/tty.usbserial-{match}) GetPower"
         if not matches:
             print(f"No matching serial found for {choice}")
             return
 
         for serial in matches:
-            script_path = os.path.join(SCRIPTS_DIR, f"{choice}.py")
+            script_path = os.path.join(LOCAL_SERIAL_DIR, f"{choice}.py")
             serial_result = subprocess.run(
                 [sys.executable, script_path, f"/dev/tty.usbserial-{serial}", "GetPower"],
                 capture_output=True, text=True
@@ -365,8 +364,8 @@ def build_app():
     find_display_serial_menu.commands.update({
         "1": ("Avocor E50", lambda: get_display_serial_id("AvocorE50")),
         "2": ("Avocor F50", lambda: get_display_serial_id("AvocorF50")),
-        "3": ("Avocor G", lambda: subprocess.run([os.path.join(SCRIPTS_DIR, "tester.sh")])),
-        "4": ("Avocor H", lambda: subprocess.run([os.path.join(SCRIPTS_DIR, "tester.sh")])),
+        "3": ("AvocorG60", lambda: get_display_serial_id("AvocorG60")),
+        "4": ("AvocorH20", lambda: get_display_serial_id("AvocorH20")),
         "b": ("Back", nav.back),
         "qq": ("Quit", exit_app),
     })
