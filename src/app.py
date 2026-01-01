@@ -5,6 +5,7 @@ import os
 import re
 import json
 from ascii_art import ASCII_ART
+from models import DisplayConfig, DisplaySerialConfig, DockConfig, IntegralConfig, VCConfig
 
 SCRIPTS_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../scripts"))
 LOCAL_SCRIPTS_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "/Local/scripts"))
@@ -12,83 +13,92 @@ LOCAL_SERIAL_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "/Loc
 
 class AppState:
     def __init__(self):
-        self.screen_count = None
-        self.screen_size = None
-        self.screen_placement = None
-        self.screen_height = None
-        self.dock_names = None
-        self.integrals = {}
-        self.display_serial = None
+        self.display_config = DisplayConfig()
+        self.display_serial_config = DisplaySerialConfig()
+        self.dock_config = DockConfig()
+        self.integral_config = IntegralConfig()
+        self.vc_config = VCConfig()
+        # ...other state...
 
-    @property
-    def screen_count(self):
-        return self._screen_count
+# class AppState:
+#     def __init__(self):
+#         self.screen_count = None
+#         self.screen_size = None
+#         self.screen_placement = None
+#         self.screen_height = None
+#         self.dock_names = None
+#         self.integrals = {}
+#         self.display_serial = None
+
+#     @property
+#     def screen_count(self):
+#         return self._screen_count
     
-    @screen_count.setter
-    def screen_count(self, count: int):
-        if count is not None and count <= 0:
-            raise ValueError("Screen count must be positive")
-        self._screen_count = count
+#     @screen_count.setter
+#     def screen_count(self, count: int):
+#         if count is not None and count <= 0:
+#             raise ValueError("Screen count must be positive")
+#         self._screen_count = count
 
-    @property
-    def screen_size(self):
-        return self._screen_size
+#     @property
+#     def screen_size(self):
+#         return self._screen_size
     
-    @screen_size.setter
-    def screen_size(self, size: str):
-        if size is not None and size.strip() == "":
-            raise ValueError("Screen size cannot be empty")
-        self._screen_size = size
+#     @screen_size.setter
+#     def screen_size(self, size: str):
+#         if size is not None and size.strip() == "":
+#             raise ValueError("Screen size cannot be empty")
+#         self._screen_size = size
     
-    @property
-    def screen_placement(self):
-        return self._screen_placement
+#     @property
+#     def screen_placement(self):
+#         return self._screen_placement
     
-    @screen_placement.setter
-    def screen_placement(self, placement: int):
-        if placement is not None and placement < 0:
-            raise ValueError("Screen placement must be non-negative")
-        self._screen_placement = placement
+#     @screen_placement.setter
+#     def screen_placement(self, placement: int):
+#         if placement is not None and placement < 0:
+#             raise ValueError("Screen placement must be non-negative")
+#         self._screen_placement = placement
 
-    @property
-    def screen_height(self):
-        return self._screen_height
+#     @property
+#     def screen_height(self):
+#         return self._screen_height
 
-    @screen_height.setter
-    def screen_height(self, height: int):
-        if height is not None and height < 0:
-            raise ValueError("Screen height must be non-negative")
-        self._screen_height = height
+#     @screen_height.setter
+#     def screen_height(self, height: int):
+#         if height is not None and height < 0:
+#             raise ValueError("Screen height must be non-negative")
+#         self._screen_height = height
 
-    @property
-    def dock_names(self):
-        return self._dock_names
+#     @property
+#     def dock_names(self):
+#         return self._dock_names
     
-    @dock_names.setter
-    def dock_names(self, names: str):
-        if names is not None and names.strip() == "":
-            raise ValueError("No Dock names set")
-        self._dock_names = names
+#     @dock_names.setter
+#     def dock_names(self, names: str):
+#         if names is not None and names.strip() == "":
+#             raise ValueError("No Dock names set")
+#         self._dock_names = names
 
-    @property
-    def integrals(self):
-        return self._integrals
+#     @property
+#     def integrals(self):
+#         return self._integrals
 
-    @integrals.setter
-    def integrals(self, value):
-        if not isinstance(value, dict):
-            raise ValueError("Integrals must be a dictionary")
-        self._integrals = value
+#     @integrals.setter
+#     def integrals(self, value):
+#         if not isinstance(value, dict):
+#             raise ValueError("Integrals must be a dictionary")
+#         self._integrals = value
 
-    @property
-    def display_serial(self):
-        return self._display_serial
+#     @property
+#     def display_serial(self):
+#         return self._display_serial
     
-    @display_serial.setter
-    def display_serial(self, id: str):
-        if id is not None and id.strip() == "":
-            raise ValueError("No display serial ID set")
-        self._display_serial = id
+#     @display_serial.setter
+#     def display_serial(self, id: str):
+#         if id is not None and id.strip() == "":
+#             raise ValueError("No display serial ID set")
+#         self._display_serial = id
 
 
 class MenuStack:
