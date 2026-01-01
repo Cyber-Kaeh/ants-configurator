@@ -15,6 +15,7 @@ class AppState:
         self.screen_count = None
         self.screen_size = None
         self.screen_placement = None
+        self.screen_height = None
         self.dock_names = None
         self.integrals = {}
         self.display_serial = None
@@ -48,6 +49,16 @@ class AppState:
         if placement is not None and placement < 0:
             raise ValueError("Screen placement must be non-negative")
         self._screen_placement = placement
+
+    @property
+    def screen_height(self):
+        return self._screen_height
+
+    @screen_height.setter
+    def screen_height(self, height: int):
+        if height is not None and height < 0:
+            raise ValueError("Screen height must be non-negative")
+        self._screen_height = height
 
     @property
     def dock_names(self):
@@ -125,6 +136,7 @@ def build_app():
                 return
             width, height = map(int, res.split('x'))
             total_width = width * count
+            state.screen_height = height
             state.screen_placement = total_width
             # Should probably move this to its own function.
             subprocess.run([os.path.join(SCRIPTS_DIR, "set_frame.sh"), str(state.screen_placement)])
@@ -282,6 +294,24 @@ def build_app():
             else:
                 print(f"No display found for serial: {serial}")
 
+    def run_betterdisplays_sh():
+        print("\nIf you want to add a license for BetterDisplays,\n"
+            "please copy the command from library page and run\n"
+            "it in terminal.\n\n" \
+            "https://sites.google.com/a/t1v.com/process-docs/technical-knowledge-database/virtual-fitheadless-better-display-setup\n")
+        input("Press [Return] when ready to continue...\n")
+        subprocess.run([os.path.join(SCRIPTS_DIR, "tester.sh")])
+
+    def run_software_vc_sh(choice):
+        if state.screen_placement and state.screen_height is None:
+            print("Error: Screen placement not set.\n" \
+            "Please set screen in Display menu first.")
+            return
+        screen_placement = str(state.screen_placement)
+        screen_height = str(state.screen_height)
+
+        subprocess.run([os.path.join(SCRIPTS_DIR, "software_vc.sh"), choice, screen_placement, screen_height])
+
 
     # Initialize menus and sub-menus
     main_menu = Menu("Main Menu", {}, startup_art=ASCII_ART)
@@ -307,9 +337,10 @@ def build_app():
     })
 
     software_vc_menu.commands.update({
-        "1": ("Enable Zoom", lambda: print("Zoom enabled.")),
-        "2": ("Enable Teams", lambda: print("Teams enabled.")),
-        "3": ("Enable both", lambda: print("Zoom and Teams enabled.")),
+        "1": ("Set up BetterDisplays", lambda: run_betterdisplays_sh()),
+        "2": ("Enable Zoom", lambda: run_software_vc_sh("zoom")),
+        "3": ("Enable Teams", lambda: run_software_vc_sh("teams")),
+        "4": ("Enable both", lambda: run_software_vc_sh("both")),
         "t": ("Toggle TTMenu", lambda: subprocess.run([os.path.join(SCRIPTS_DIR, "toggle_ttmenu.sh")])),
         "b": ("Back", nav.back),
         "qq": ("Quit", exit_app),
