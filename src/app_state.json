@@ -1,1 +1,26 @@
-{"_screen_count": null, "_screen_size": null, "_screen_placement": null, "_dock_names": "\"Dock1\" \"Dock2\"", "_integrals": {"2": {"serial": "FT8BDBHY1", "firmware": "2.53.2.53"}}, "_display_serial": null}
+{
+    "display_config": {
+        "count": null,
+        "size": null,
+        "placement": null,
+        "height": null,
+        "serial": null
+    },
+    "dock_config": {
+        "names": [],
+        "count": null,
+        "size": null,
+        "position": null
+    },
+    "integral_config": {
+        "serial": null,
+        "firmware": null,
+        "integrals": {}
+    },
+    "vc_config": {
+        "multi_display": false,
+        "placement": null,
+        "teams": false,
+        "zoom": false
+    }
+}

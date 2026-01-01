@@ -3,9 +3,9 @@ import sys
 import subprocess
 import os
 import re
-import json
 from ascii_art import ASCII_ART
-from models import DisplayConfig, DisplaySerialConfig, DockConfig, IntegralConfig, VCConfig
+from models import DisplayConfig, DockConfig, IntegralConfig, VCConfig
+from actions import SaveStateAction, LoadStateAction, ToggleTTMenuAction, WriteDefaultsAction, RunScriptAction
 
 SCRIPTS_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../scripts"))
 LOCAL_SCRIPTS_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "/Local/scripts"))
@@ -14,91 +14,9 @@ LOCAL_SERIAL_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "/Loc
 class AppState:
     def __init__(self):
         self.display_config = DisplayConfig()
-        self.display_serial_config = DisplaySerialConfig()
         self.dock_config = DockConfig()
         self.integral_config = IntegralConfig()
         self.vc_config = VCConfig()
-        # ...other state...
-
-# class AppState:
-#     def __init__(self):
-#         self.screen_count = None
-#         self.screen_size = None
-#         self.screen_placement = None
-#         self.screen_height = None
-#         self.dock_names = None
-#         self.integrals = {}
-#         self.display_serial = None
-
-#     @property
-#     def screen_count(self):
-#         return self._screen_count
-    
-#     @screen_count.setter
-#     def screen_count(self, count: int):
-#         if count is not None and count <= 0:
-#             raise ValueError("Screen count must be positive")
-#         self._screen_count = count
-
-#     @property
-#     def screen_size(self):
-#         return self._screen_size
-    
-#     @screen_size.setter
-#     def screen_size(self, size: str):
-#         if size is not None and size.strip() == "":
-#             raise ValueError("Screen size cannot be empty")
-#         self._screen_size = size
-    
-#     @property
-#     def screen_placement(self):
-#         return self._screen_placement
-    
-#     @screen_placement.setter
-#     def screen_placement(self, placement: int):
-#         if placement is not None and placement < 0:
-#             raise ValueError("Screen placement must be non-negative")
-#         self._screen_placement = placement
-
-#     @property
-#     def screen_height(self):
-#         return self._screen_height
-
-#     @screen_height.setter
-#     def screen_height(self, height: int):
-#         if height is not None and height < 0:
-#             raise ValueError("Screen height must be non-negative")
-#         self._screen_height = height
-
-#     @property
-#     def dock_names(self):
-#         return self._dock_names
-    
-#     @dock_names.setter
-#     def dock_names(self, names: str):
-#         if names is not None and names.strip() == "":
-#             raise ValueError("No Dock names set")
-#         self._dock_names = names
-
-#     @property
-#     def integrals(self):
-#         return self._integrals
-
-#     @integrals.setter
-#     def integrals(self, value):
-#         if not isinstance(value, dict):
-#             raise ValueError("Integrals must be a dictionary")
-#         self._integrals = value
-
-#     @property
-#     def display_serial(self):
-#         return self._display_serial
-    
-#     @display_serial.setter
-#     def display_serial(self, id: str):
-#         if id is not None and id.strip() == "":
-#             raise ValueError("No display serial ID set")
-#         self._display_serial = id
 
 
 class MenuStack:
@@ -122,32 +40,17 @@ def build_app():
     state = AppState()
     nav = MenuStack()
 
-    def write_state():
-        with open("app_state.json", "w") as f:
-            json.dump(state.__dict__, f)
-
-    def load_last_configs():
-        try:
-            with open("app_state.json", "r") as f:
-                data = json.load(f)
-                state.__dict__.update(data)
-                print("Last configurations loaded.")
-        except FileNotFoundError:
-            print("No saved configurations found.")
-        except json.JSONDecodeError:
-            print("Error decoding saved configurations.")
-
     def calculate_frame():
         try:
-            res = state.screen_size
-            count = state.screen_count
+            res = state.display_config.size
+            count = state.display_config.count
             if res is None or count is None:
                 print("Screen size or count not set.")
                 return
             width, height = map(int, res.split('x'))
             total_width = width * count
-            state.screen_height = height
-            state.screen_placement = total_width
+            state.display_config.height = height
+            state.display_config.placement = total_width
             # Should probably move this to its own function.
             subprocess.run([os.path.join(SCRIPTS_DIR, "set_frame.sh"), str(state.screen_placement)])
             print(f"Calculated frame size: {total_width}x{height}")
@@ -156,8 +59,8 @@ def build_app():
 
     def set_custom_res():
         try:
-            res = input("Enter custom resolution (e.g., 2560x1440): ")
-            state.screen_size = res
+            res = input("Enter custom resolution (e.g., 3840x2160): ")
+            state.display_config.size = res
         except ValueError as e:
             print(f"Invalid input: {e}")
 
@@ -165,49 +68,49 @@ def build_app():
         return (
             f"Display Configuration\n"
             f"Screen Count: {state.screen_count}\n"
-            f"Screen Size: {state.screen_size}"
+            f"Screen Size: {state.display_config.size}"
         )
 
     def set_screen_count():
         try:
             count = int(input("Enter number of displays: "))
-            state.screen_count = count
+            state.display_config.count = count
         except ValueError as e:
             print(f"Invalid input: {e}")
 
     def set_screen_size(option):
-        state.screen_size = option
+        state.display_config.size = option
         print(f"Screen size set to {option}")
         nav.back()
 
     def set_dock_names():
         try:
             names = input("Enter dock names: ")
-            state.dock_names = names
+            state.dock_config.names = names
             print("Dock names set.")
         except ValueError as e:
             print(f"Invalid input: {e}")
 
     def initialize_dock():
-        if state.screen_placement is None or state.dock_names is None:
+        if state.display_config.placement is None or not state.dock_config.names:
             print("Screen placement and/or dock names not set.")
             return
-        subprocess.run([os.path.join(SCRIPTS_DIR, "initialize_dock.sh"), str(state.screen_placement), state.dock_names])
+        subprocess.run([os.path.join(SCRIPTS_DIR, "initialize_dock.sh"), str(state.display_config.placement), state.dock_config.names])
 
     def select_integral():
-        if not state.integrals:
+        if not state.integral_config.integrals:
             print("Error: No Integral serial ID set. Run '1) Find Integral Serial #' first.")
             return None
-        elif len(state.integrals) == 1:
-            key = next(iter(state.integrals))
-            print(f"Only one Integral found: Serial ID: {state.integrals[key]['serial']}")
+        elif len(state.integral_config.integrals) == 1:
+            key = next(iter(state.integral_config.integrals))
+            print(f"Only one Integral found: Serial ID: {state.integral_config.integrals[key]['serial']}")
             return key
         else:
             print("Multiple Integrals detected. Please select which one to reboot:")
-            for key, integral in state.integrals.items():
+            for key, integral in state.integral_config.integrals.items():
                 print(f"{key}) Serial: {integral['serial']}, Firmware: {integral['firmware']}")
             choice = input("Enter the number of the Integral: ")
-            if choice in state.integrals:
+            if choice in state.integral_config.integrals:
                 return choice
             else:
                 print("Invalid selection.")
@@ -215,14 +118,14 @@ def build_app():
     def set_4k_mirror():
         selected_key = select_integral()
         if selected_key:
-            serial = state.integrals[selected_key]['serial']
+            serial = state.integral_config.integrals[selected_key]['serial']
             print(f"Setting 4K mirror for Serial ID: {serial}")
             subprocess.run([os.path.join(SCRIPTS_DIR, "set_4k_mirror.sh"), serial])
 
     def reboot_integral():
         selected_key = select_integral()
         if selected_key:
-            serial = state.integrals[selected_key]['serial']
+            serial = state.integral_config.integrals[selected_key]['serial']
             print(f"Rebooting Integral with Serial ID: {serial}")
             script_path = os.path.join(LOCAL_SERIAL_DIR, "integralSerial.py")
             result = subprocess.run(
@@ -239,7 +142,7 @@ def build_app():
     def interrogate_integral():
         selected_key = select_integral()
         if selected_key:
-            serial = state.integrals[selected_key]['serial']
+            serial = state.integral_config.integrals[selected_key]['serial']
             print(f"Interrogating Integral with Serial ID: {serial}")
             script_path = os.path.join(SCRIPTS_DIR, "integralStatus.py")
             result = subprocess.run(
@@ -279,7 +182,7 @@ def build_app():
             else:
                 print(f"No Integral found for serial: {serial}")
         
-        state.integrals = integrals
+        state.integral_config.integrals = integrals
         if not integrals:
             print("No serial USB found.")
 
@@ -299,7 +202,7 @@ def build_app():
             )
             get_power_output = serial_result.stdout
             if "Display is ON" in get_power_output:
-                state.display_serial = serial
+                state.display_config.serial = serial
                 print(f"Display Serial ID set to: {serial}")
             else:
                 print(f"No display found for serial: {serial}")
@@ -313,14 +216,14 @@ def build_app():
         subprocess.run([os.path.join(SCRIPTS_DIR, "tester.sh")])
 
     def run_software_vc_sh(choice):
-        if state.screen_placement and state.screen_height is None:
+        if state.display_config.placement and state.display_config.height is None:
             print("Error: Screen placement not set.\n" \
             "Please set screen in Display menu first.")
             return
-        screen_placement = str(state.screen_placement)
-        screen_height = str(state.screen_height)
+        placement = str(state.display_config.placement)
+        height = str(state.display_config.height)
 
-        subprocess.run([os.path.join(SCRIPTS_DIR, "software_vc.sh"), choice, screen_placement, screen_height])
+        subprocess.run([os.path.join(SCRIPTS_DIR, "software_vc.sh"), choice, placement, height])
 
 
     # Initialize menus and sub-menus
@@ -341,7 +244,7 @@ def build_app():
     dock_menu.commands.update({
         "1": ("Set Names Array", lambda: set_dock_names()),
         "2": ("Initialize Dock", lambda: initialize_dock()),
-        "t": ("Toggle TTMenu", lambda: subprocess.run([os.path.join(SCRIPTS_DIR, "toggle_ttmenu.sh")])),
+        "t": ("Toggle TTMenu", lambda: ToggleTTMenuAction().execute()),
         "b": ("Back", nav.back),
         "qq": ("Quit", exit_app),
     })
@@ -351,7 +254,7 @@ def build_app():
         "2": ("Enable Zoom", lambda: run_software_vc_sh("zoom")),
         "3": ("Enable Teams", lambda: run_software_vc_sh("teams")),
         "4": ("Enable both", lambda: run_software_vc_sh("both")),
-        "t": ("Toggle TTMenu", lambda: subprocess.run([os.path.join(SCRIPTS_DIR, "toggle_ttmenu.sh")])),
+        "t": ("Toggle TTMenu", lambda: ToggleTTMenuAction().execute()),
         "b": ("Back", nav.back),
         "qq": ("Quit", exit_app),
     })
@@ -360,14 +263,14 @@ def build_app():
         "1": ("Set Defaults", lambda: subprocess.run([os.path.join(SCRIPTS_DIR, "tester.sh")])),
         "2": ("Avocor E Defaults", print("Setting Avocor E defaults...")),
         "3": ("Avocor F Defaults", print("Setting Avocor F defaults...")),
-        "t": ("Toggle TTMenu", lambda: subprocess.run([os.path.join(SCRIPTS_DIR, "toggle_ttmenu.sh")])),
+        "t": ("Toggle TTMenu", lambda: ToggleTTMenuAction().execute()),
         "b": ("Back", nav.back),
         "qq": ("Quit", exit_app),
     })
 
     hid_menu.commands.update({
         "1": ("Set Defaults", lambda: subprocess.run([os.path.join(SCRIPTS_DIR, "tester.sh")])),
-        "t": ("Toggle TTMenu", lambda: subprocess.run([os.path.join(SCRIPTS_DIR, "toggle_ttmenu.sh")])),
+        "t": ("Toggle TTMenu", lambda: ToggleTTMenuAction().execute()),
         "b": ("Back", nav.back),
         "qq": ("Quit", exit_app),
     })
@@ -375,7 +278,7 @@ def build_app():
     touch_menu.commands.update({
         "1": ("UPPD", lambda: nav.push(uppd_menu)),
         "2": ("HID", lambda: nav.push(hid_menu)),
-        "t": ("Toggle TTMenu", lambda: subprocess.run([os.path.join(SCRIPTS_DIR, "toggle_ttmenu.sh")])),
+        "t": ("Toggle TTMenu", lambda: ToggleTTMenuAction().execute()),
         "b": ("Back", nav.back),
         "qq": ("Quit", exit_app),
     })
@@ -387,10 +290,10 @@ def build_app():
         "4": ("Set 4K Mirror", lambda: set_4k_mirror()),
         "5": ("Example crontabs", lambda: subprocess.run([
             os.path.join(SCRIPTS_DIR, "integral_crontabs.sh"),
-            state.integrals[next(iter(state.integrals))]['serial'] if state.integrals else 'XXXXXXXX'
+            state.integral_config.integrals[next(iter(state.integral_config.integrals))]['serial'] if state.integral_config.integrals else 'XXXXXXXX'
         ])),
         "b": ("Back", nav.back),
-        "ss": ("Save Configurations", write_state),
+        "ss": ("Save Configurations", lambda: SaveStateAction(state).execute()),
         "qq": ("Quit", exit_app),
     })
 
@@ -416,7 +319,7 @@ def build_app():
         "2": ("Set resolution to 5120x2880", lambda: set_screen_size("5120x2880")),
         "3": ("Set resolution to 1920x1080", lambda: set_screen_size("1920x1080")),
         "4": ("Set custom resolution", set_custom_res),
-        "t": ("Toggle TTMenu", lambda: subprocess.run([os.path.join(SCRIPTS_DIR, "toggle_ttmenu.sh")])),
+        "t": ("Toggle TTMenu", lambda: ToggleTTMenuAction().execute()),
         "b": ("Back", nav.back),
         "qq": ("Quit", exit_app),
     })
@@ -424,9 +327,9 @@ def build_app():
     display_config_menu.commands.update({
         "1": ("Set screen count", set_screen_count),
         "2": ("Set screen size", lambda: nav.push(resolution_menu)),
-        "3": ("Show current", lambda: print(f"Screen Count: {state.screen_count}, Screen Size: {state.screen_size}")),
+        "3": ("Show current", lambda: print(f"Screen Count: {state.display_config.count}, Screen Size: {state.display_config.size}")),
         "4": ("Set frame", lambda: calculate_frame()),
-        "t": ("Toggle TTMenu", lambda: subprocess.run([os.path.join(SCRIPTS_DIR, "toggle_ttmenu.sh")])),
+        "t": ("Toggle TTMenu", lambda: ToggleTTMenuAction().execute()),
         "b": ("Back", nav.back),
         "qq": ("Quit", exit_app),
     })
@@ -434,7 +337,7 @@ def build_app():
     displays_menu.commands.update({
         "1": ("Displays Configuration", lambda: nav.push(display_config_menu)),
         "2": ("Serial Commands Menu", lambda: nav.push(display_serial_menu)),
-        "t": ("Toggle TTMenu", lambda: subprocess.run([os.path.join(SCRIPTS_DIR, "toggle_ttmenu.sh")])),
+        "t": ("Toggle TTMenu", lambda: ToggleTTMenuAction().execute()),
         "b": ("Back", nav.back),
         "qq": ("Quit", exit_app),
     })
@@ -445,10 +348,10 @@ def build_app():
         "3": ("Touch Menu", lambda: nav.push(touch_menu)),
         "4": ("Software VC Menu", lambda: nav.push(software_vc_menu)),
         "5": ("Dock Menu", lambda: nav.push(dock_menu)),
-        "6": ("Other Defaults", lambda: nav.push(other_defaults_menu)),
-        "t": ("Toggle TTMenu", lambda: subprocess.run([os.path.join(SCRIPTS_DIR, "toggle_ttmenu.sh")])),
-        "ss": ("Save Configurations", write_state),
-        "b4": ("Load Last Configs", load_last_configs),
+        # "6": ("Other Defaults", lambda: nav.push(other_defaults_menu)),
+        "t": ("Toggle TTMenu", lambda: ToggleTTMenuAction().execute()),
+        "ss": ("Save Configurations", lambda: SaveStateAction(state).execute()),
+        "b4": ("Load Last Configs", lambda: LoadStateAction(state).execute()),
         "qq": ("Quit", exit_app),
     })
 
