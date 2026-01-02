@@ -1,14 +1,15 @@
 {
     "display_config": {
-        "count": null,
-        "size": null,
-        "placement": null,
-        "height": null,
-        "serial": null
+        "count": 1,
+        "size": "3840x2160",
+        "placement": 3840,
+        "height": 2160,
+        "serial": "FT8BDBHY1"
     },
     "dock_config": {
         "names": [
-            "Dock1 MTR"
+            "Dock1",
+            "Dock2"
         ],
         "count": null,
         "size": null,
@@ -17,7 +18,12 @@
     "integral_config": {
         "serial": null,
         "firmware": null,
-        "integrals": {}
+        "integrals": {
+            "1": {
+                "serial": "FT8BDBHY0",
+                "firmware": "2.52.2.50"
+            }
+        }
     },
     "vc_config": {
         "multi_display": false,

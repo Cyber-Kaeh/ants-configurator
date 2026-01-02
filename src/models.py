@@ -77,11 +77,11 @@ class DisplayConfig:
 
 
 class DockConfig:
-    def __init__(self, names=None, count=None, size=None, position=None):
+    def __init__(self, names=None, count=None, size=None, enabled=False):
         self._names = names or []
         self._count = count
         self._size = size
-        self._position = position
+        self._enabled = enabled
 
     @property
     def names(self):
@@ -114,19 +114,19 @@ class DockConfig:
         self._size = value
 
     @property
-    def position(self):
-        return self._position
+    def enabled(self):
+        return self._enabled
 
-    @position.setter
-    def position(self, value):
-        self._position = value
+    @enabled.setter
+    def enabled(self, value):
+        self._enabled = value
 
     def to_dict(self):
         return {
             "names": self.names,
             "count": self.count,
             "size": self.size,
-            "position": self.position,
+            "enabled": self.enabled,
         }
 
     @classmethod
@@ -135,7 +135,7 @@ class DockConfig:
             names=d.get("names"),
             count=d.get("count"),
             size=d.get("size"),
-            position=d.get("position"),
+            enabled=d.get("enabled"),
         )
 
 

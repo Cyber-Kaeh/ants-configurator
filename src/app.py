@@ -88,10 +88,38 @@ def build_app():
         print(f"Screen size set to {option}")
         nav.back()
 
+    def configure_docks():
+        finished = False
+        while not finished:
+            try:
+                dock_name = input("Enter dock name (or 'done' to finish): ")
+                if dock_name.lower() == 'done':
+                    finished = True
+                    continue
+                dock_res = input("Enter dock resolution (e.g., 1920x1080): ")
+                if not re.match(r"^\d+x\d+$", dock_res):
+                    raise ValueError("Invalid format. Use widthxheight (e.g., 1920x1080).")
+                state.dock_config.size = dock_res
+                print(f"Dock size set to {dock_res}.")
+                state.dock_config.names.append(dock_name)
+                state.dock_config.size.append(dock_res)
+                state.dock_config.count += 1
+                state.dock_config.enabled = True
+            except ValueError as e:
+                print(f"Invalid input: {e}")
+        # input: dock name?
+        # input: dock resolution?
+        # save state:
+        # save the name to names[1], res to size[1], count ++1, enable True
+
+
+
     def set_dock_names():
         try:
-            names = input("Enter dock names as a comma-separated list\n ex: Dock1, Dock2, MTR: ")
-            state.dock_config.names = names.split(", ")
+            names_input = input("Enter dock names as a comma-separated list\n ex: Dock1, Dock2, MTR: ")
+            names_list = [name.strip() for name in names_input.split(',')]
+            state.dock_config.names = names_list
+            SaveStateAction(state).execute()
             print("Dock names set.")
         except ValueError as e:
             print(f"Invalid input: {e}")
@@ -100,8 +128,33 @@ def build_app():
         if state.display_config.placement is None or not state.dock_config.names:
             print("Screen placement and/or dock names not set.")
             return
-        dock_names_str = ",".join(state.dock_config.names)
-        subprocess.run([os.path.join(SCRIPTS_DIR, "initialize_dock.sh"), str(state.display_config.placement), dock_names_str])
+        
+        coordinates = []
+        current_x = state.display_config.placement
+        dock_width, dock_height = map(int, state.dock_config.size.split('x'))
+
+        for _ in state.dock_config.names:
+            coord_string = f"{{{{{current_x}, 0}}, {{{dock_width}, {dock_height}}}}}"
+            coordinates.append(coord_string)
+            current_x += dock_width
+
+        WriteDefaultsAction("TTMenu", "thinkHubEnableDock", "1").execute()
+        WriteDefaultsAction("TTMenu", "dockNames", state.dock_config.names, value_type="-array").execute()
+
+        """
+        # build write command for screen coordinates
+        # for i, name in enumerate(state.dock_config.names):
+        #     WriteDefaultsAction("TTMenu", f"dock[{i}].name", name).execute()
+        #     WriteDefaultsAction("TTMenu", f"dock[{i}].size", state.dock_config.size[i] if i < len(state.dock_config.size) else None).execute()
+        #     WriteDefaultsAction("TTMenu", f"dock[{i}].enabled", "1" if state.dock_config.enabled else "0").execute()
+        coordinates = []
+        # for i, name in enumerate(state.dock_config.names):
+        #     coordinates.append(f"{{{{0, {i}}}}, {{{state.dock_config.placement}, {state.dock_config.height}}}}}")
+        
+
+        
+        """
+
 
     def select_integral():
         if not state.integral_config.integrals:
@@ -254,7 +307,7 @@ def build_app():
 
     # Define menu commands in dictionaries
     dock_menu.commands.update({
-        "1": ("Set Names Array", lambda: set_dock_names()),
+        "1": ("Configure Dock", lambda: configure_docks()),
         "2": ("Initialize Dock", lambda: initialize_dock()),
         "t": ("Toggle TTMenu", lambda: ToggleTTMenuAction().execute()),
         "b": ("Back", nav.back),

@@ -68,7 +68,7 @@ class WriteDefaultsAction:
     def __init__(self, domain, key, value, value_type=None):
         self.domain = domain
         self.key = key
-        self.value = value
+        self.value = value or []
         self.value_type = value_type
 
     def execute(self):
@@ -76,9 +76,13 @@ class WriteDefaultsAction:
         command = ["defaults", "write", full_domain, self.key]
         if self.value_type:
             command.append(self.value_type)
-        command.append(self.value)
         
-        print(f"Running command: {' '.join(command)}")
+        if isinstance(self.value, list):
+            command.extend(self.value)
+        else:
+            command.append(str(self.value))
+        
+        print(f"Running command: {' '.join(map(str, command))}")
         subprocess.run(command, check=True)
 
 
