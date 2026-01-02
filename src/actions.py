@@ -90,9 +90,10 @@ class RunIntegralSerialAction:
     def execute(self):
         script_path = os.path.join(LOCAL_SERIAL_DIR, "integralSerial.py")
         result = subprocess.run(
-            [sys.executable, script_path, f"/dev/tty.usbserial-{self.serial}", "reboot"],
+            [sys.executable, script_path, f"/dev/tty.usbserial-{self.serial}", self.command],
             capture_output=True, text=True
         )
+        print(f"Result: {result.stdout}")
         if result.returncode == 0:
             print(f"{self.command} command sent successfully.")
         else:
