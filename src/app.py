@@ -5,7 +5,7 @@ import os
 import re
 from ascii_art import ASCII_ART
 from models import DisplayConfig, DockConfig, IntegralConfig, VCConfig
-from actions import SaveStateAction, LoadStateAction, ToggleTTMenuAction, WriteDefaultsAction, RunScriptAction
+from actions import SaveStateAction, LoadStateAction, ToggleTTMenuAction, WriteDefaultsAction, RunIntegralSerialAction, RunScriptAction
 
 SCRIPTS_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../scripts"))
 LOCAL_SCRIPTS_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "/Local/scripts"))
@@ -121,29 +121,35 @@ def build_app():
             else:
                 print("Invalid selection.")
 
+    def custom_integral_command():
+        selected_key = select_integral()
+        print("Enter commad to run, or [help] for list of commands")
+        choice = input("> ")
+        if selected_key:
+            serial = state.integral_config.integrals[selected_key]['serial']
+            if choice == "help":
+                RunIntegralSerialAction(serial, "help").execute()
+            else:
+                RunIntegralSerialAction(serial, choice).execute()
+
     def set_4k_mirror():
         selected_key = select_integral()
         if selected_key:
             serial = state.integral_config.integrals[selected_key]['serial']
             print(f"Setting 4K mirror for Serial ID: {serial}")
-            subprocess.run([os.path.join(SCRIPTS_DIR, "set_4k_mirror.sh"), serial])
+            RunIntegralSerialAction(serial, "setScalingNone").execute()
+            RunIntegralSerialAction(serial, "reboot").execute()
+            # subprocess.run([os.path.join(SCRIPTS_DIR, "set_4k_mirror.sh"), serial])
 
     def reboot_integral():
         selected_key = select_integral()
         if selected_key:
             serial = state.integral_config.integrals[selected_key]['serial']
             print(f"Rebooting Integral with Serial ID: {serial}")
-            script_path = os.path.join(LOCAL_SERIAL_DIR, "integralSerial.py")
-            result = subprocess.run(
-                [sys.executable, script_path, f"/dev/tty.usbserial-{serial}", "reboot"],
-                capture_output=True, text=True
-            )
-            if result.returncode == 0:
-                print("Reboot command sent successfully.")
-            else:
-                print(f"Error: Reboot command failed with return code {result.returncode}")
-                print("Error Output:")
-                print(result.stderr)
+            RunIntegralSerialAction(serial, "reboot").execute()
+        else:
+            print("No Integral selected.")
+
                 
     def interrogate_integral():
         selected_key = select_integral()
@@ -298,6 +304,7 @@ def build_app():
             os.path.join(SCRIPTS_DIR, "integral_crontabs.sh"),
             state.integral_config.integrals[next(iter(state.integral_config.integrals))]['serial'] if state.integral_config.integrals else 'XXXXXXXX'
         ])),
+        "6": ("Custom Command", lambda: custom_integral_command()),
         "b": ("Back", nav.back),
         "ss": ("Save Configurations", lambda: SaveStateAction(state).execute()),
         "qq": ("Quit", exit_app),

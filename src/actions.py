@@ -1,5 +1,6 @@
 import subprocess
 import os
+import sys
 import json
 from models import DisplayConfig, DockConfig, IntegralConfig, VCConfig
 
@@ -30,7 +31,6 @@ class LoadStateAction:
         self.file_path = file_path
 
     def execute(self):
-        """Loads the state from a JSON file."""
         try:
             with open(self.file_path, "r") as f:
                 data = json.load(f)
@@ -80,6 +80,26 @@ class WriteDefaultsAction:
         
         print(f"Running command: {' '.join(command)}")
         subprocess.run(command, check=True)
+
+
+class RunIntegralSerialAction:
+    def __init__(self, serial, command):
+        self.serial = serial
+        self.command = command
+
+    def execute(self):
+        script_path = os.path.join(LOCAL_SERIAL_DIR, "integralSerial.py")
+        result = subprocess.run(
+            [sys.executable, script_path, f"/dev/tty.usbserial-{self.serial}", "reboot"],
+            capture_output=True, text=True
+        )
+        if result.returncode == 0:
+            print(f"{self.command} command sent successfully.")
+        else:
+            print(f"Error: {self.command} command failed with return code {result.returncode}")
+            print("Error Output:")
+            print(result.stderr)
+
 
 class RunScriptAction:
     def __init__(self, script_path, args):
