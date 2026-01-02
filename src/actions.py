@@ -97,9 +97,9 @@ class RunIntegralSerialAction:
             [sys.executable, script_path, f"/dev/tty.usbserial-{self.serial}", self.command],
             capture_output=True, text=True
         )
-        print(f"Result: {result.stdout}")
         if result.returncode == 0:
             print(f"{self.command} command sent successfully.")
+            print(result.stdout)
         else:
             print(f"Error: {self.command} command failed with return code {result.returncode}")
             print("Error Output:")
