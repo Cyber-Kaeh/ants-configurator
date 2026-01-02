@@ -51,11 +51,16 @@ def build_app():
             total_width = width * count
             state.display_config.height = height
             state.display_config.placement = total_width
-            # Should probably move this to its own function.
-            subprocess.run([os.path.join(SCRIPTS_DIR, "set_frame.sh"), str(state.screen_placement)])
             print(f"Calculated frame size: {total_width}x{height}")
         except Exception as e:
             print(f"Error calculating frame: {e}")
+
+    def set_frame():
+        calculate_frame()
+        if state.display_config.placement:
+            frame_string = f"{{{{0, 0}}, {{{state.display_config.placement}, {state.display_config.height}}}}}"
+            WriteDefaultsAction("TTMenu", "frame", frame_string, value_type="-string").execute()
+            WriteDefaultsAction("MultiTouchCalibrate", "frame", frame_string, value_type="-string").execute()
 
     def set_custom_res():
         try:
@@ -328,7 +333,7 @@ def build_app():
         "1": ("Set screen count", set_screen_count),
         "2": ("Set screen size", lambda: nav.push(resolution_menu)),
         "3": ("Show current", lambda: print(f"Screen Count: {state.display_config.count}, Screen Size: {state.display_config.size}")),
-        "4": ("Set frame", lambda: calculate_frame()),
+        "4": ("Set frame", set_frame),
         "t": ("Toggle TTMenu", lambda: ToggleTTMenuAction().execute()),
         "b": ("Back", nav.back),
         "qq": ("Quit", exit_app),

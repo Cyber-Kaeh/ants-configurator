@@ -65,15 +65,21 @@ class ToggleTTMenuAction:
 
 
 class WriteDefaultsAction:
-    def __init__(self, domain, key, value):
+    def __init__(self, domain, key, value, value_type=None):
         self.domain = domain
         self.key = key
         self.value = value
+        self.value_type = value_type
 
     def execute(self):
-        subprocess.run(["defaults", "write", self.domain, self.key, self.value])
-        print(f"Set {self.key} to {self.value} in {self.domain}")
-
+        full_domain = f"com.t1visions.{self.domain}"
+        command = ["defaults", "write", full_domain, self.key]
+        if self.value_type:
+            command.append(self.value_type)
+        command.append(self.value)
+        
+        print(f"Running command: {' '.join(command)}")
+        subprocess.run(command, check=True)
 
 class RunScriptAction:
     def __init__(self, script_path, args):
