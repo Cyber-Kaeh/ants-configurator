@@ -156,7 +156,7 @@ def build_app():
         if selected_key:
             serial = state.integral_config.integrals[selected_key]['serial']
             print(f"Interrogating Integral with Serial ID: {serial}")
-            script_path = os.path.join(SCRIPTS_DIR, "integralStatus.py")
+            script_path = os.path.join(LOCAL_SCRIPTS_DIR, "integralStatus.py")
             result = subprocess.run(
                 [sys.executable, script_path, "--serial", f"/dev/tty.usbserial-{serial}", "--interrogate"],
                 capture_output=True, text=True
