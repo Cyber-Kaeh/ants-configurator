@@ -90,8 +90,8 @@ def build_app():
 
     def set_dock_names():
         try:
-            names = input("Enter dock names: ")
-            state.dock_config.names = names
+            names = input("Enter dock names as a comma-separated list\n ex: Dock1, Dock2, MTR: ")
+            state.dock_config.names = names.split(", ")
             print("Dock names set.")
         except ValueError as e:
             print(f"Invalid input: {e}")
@@ -100,7 +100,8 @@ def build_app():
         if state.display_config.placement is None or not state.dock_config.names:
             print("Screen placement and/or dock names not set.")
             return
-        subprocess.run([os.path.join(SCRIPTS_DIR, "initialize_dock.sh"), str(state.display_config.placement), state.dock_config.names])
+        dock_names_str = ",".join(state.dock_config.names)
+        subprocess.run([os.path.join(SCRIPTS_DIR, "initialize_dock.sh"), str(state.display_config.placement), dock_names_str])
 
     def select_integral():
         if not state.integral_config.integrals:
@@ -350,9 +351,9 @@ def build_app():
     main_menu.commands.update({
         "1": ("Displays Menu", lambda: nav.push(displays_menu)),
         "2": ("Integral Menu", lambda: nav.push(integral_menu)),
-        "3": ("Touch Menu", lambda: nav.push(touch_menu)),
-        "4": ("Software VC Menu", lambda: nav.push(software_vc_menu)),
-        "5": ("Dock Menu", lambda: nav.push(dock_menu)),
+        "3": ("Dock Menu", lambda: nav.push(dock_menu)),
+        "4": ("Touch Menu", lambda: nav.push(touch_menu)),
+        "5": ("Software VC Menu", lambda: nav.push(software_vc_menu)),
         # "6": ("Other Defaults", lambda: nav.push(other_defaults_menu)),
         "t": ("Toggle TTMenu", lambda: ToggleTTMenuAction().execute()),
         "ss": ("Save Configurations", lambda: SaveStateAction(state).execute()),

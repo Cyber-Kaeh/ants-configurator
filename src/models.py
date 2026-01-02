@@ -89,8 +89,10 @@ class DockConfig:
 
     @names.setter
     def names(self, value):
-        if value is not None and value.strip() == "":
-            raise ValueError("Dock names cannot be empty")
+        if not isinstance(value, list):
+            raise TypeError("Dock names must be a list.")
+        if not all(isinstance(n, str) and n.strip() for n in value):
+            raise ValueError("All dock names must be non-empty strings.")
         self._names = value
 
     @property

@@ -1,13 +1,15 @@
 {
     "display_config": {
-        "count": 1,
-        "size": "3840x2160",
+        "count": null,
+        "size": null,
         "placement": null,
         "height": null,
         "serial": null
     },
     "dock_config": {
-        "names": [],
+        "names": [
+            "Dock1 MTR"
+        ],
         "count": null,
         "size": null,
         "position": null
