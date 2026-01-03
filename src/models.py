@@ -77,10 +77,10 @@ class DisplayConfig:
 
 
 class DockConfig:
-    def __init__(self, names=None, count=None, size=None, enabled=False):
+    def __init__(self, names=None, count=1, size=None, enabled=False):
         self._names = names or []
         self._count = count
-        self._size = size
+        self._size = size or []
         self._enabled = enabled
 
     @property
@@ -111,6 +111,12 @@ class DockConfig:
 
     @size.setter
     def size(self, value):
+        if isinstance(value, str):
+            value = [value]
+        if not isinstance(value, list):
+            raise TypeError("Dock sizes must be a list.")
+        if not all(isinstance(s, str) and s.strip() for s in value):
+            raise ValueError("All dock sizes must be non-empty strings.")
         self._size = value
 
     @property

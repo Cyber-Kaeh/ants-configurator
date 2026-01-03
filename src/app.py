@@ -5,7 +5,7 @@ import os
 import re
 from ascii_art import ASCII_ART
 from models import DisplayConfig, DockConfig, IntegralConfig, VCConfig
-from actions import SaveStateAction, LoadStateAction, ToggleTTMenuAction, WriteDefaultsAction, RunIntegralSerialAction, RunScriptAction
+from actions import SaveStateAction, LoadStateAction, DeleteConfigAction, ToggleTTMenuAction, WriteDefaultsAction, RunIntegralSerialAction, RunScriptAction
 
 SCRIPTS_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../scripts"))
 LOCAL_SCRIPTS_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "/Local/scripts"))
@@ -61,6 +61,7 @@ def build_app():
             frame_string = f"{{{{0, 0}}, {{{state.display_config.placement}, {state.display_config.height}}}}}"
             WriteDefaultsAction("TTMenu", "frame", frame_string, value_type="-string").execute()
             WriteDefaultsAction("MultiTouchCalibrate", "frame", frame_string, value_type="-string").execute()
+            SaveStateAction(state).execute()
 
     def set_custom_res():
         try:
@@ -131,15 +132,17 @@ def build_app():
         
         coordinates = []
         current_x = state.display_config.placement
-        dock_width, dock_height = map(int, state.dock_config.size.split('x'))
+        # dock_width, dock_height = map(int, state.dock_config.size.split('x'))
 
-        for _ in state.dock_config.names:
-            coord_string = f"{{{{{current_x}, 0}}, {{{dock_width}, {dock_height}}}}}"
+        for i, dock_name in enumerate(state.dock_config.names):
+            dock_width, dock_height = map(int, state.dock_config.size[i].split('x'))
+            coord_string = f"'{{{{{current_x}, 0}}, {{{dock_width}, {dock_height}}}}}'"
             coordinates.append(coord_string)
             current_x += dock_width
 
         WriteDefaultsAction("TTMenu", "thinkHubEnableDock", "1").execute()
         WriteDefaultsAction("TTMenu", "dockNames", state.dock_config.names, value_type="-array").execute()
+        WriteDefaultsAction("TTMenu", "dockCoordinates", coordinates, value_type="-array").execute()
 
         """
         # build write command for screen coordinates
@@ -418,6 +421,7 @@ def build_app():
         "t": ("Toggle TTMenu", lambda: ToggleTTMenuAction().execute()),
         "ss": ("Save Configurations", lambda: SaveStateAction(state).execute()),
         "b4": ("Load Last Configs", lambda: LoadStateAction(state).execute()),
+        "dd": ("Delete Configurations", lambda: DeleteConfigAction().execute()),
         "qq": ("Quit", exit_app),
     })
 

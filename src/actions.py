@@ -45,6 +45,20 @@ class LoadStateAction:
             print(f"Error decoding saved configurations: {e}")
 
 
+class DeleteConfigAction:
+    def __init__(self, file_path="app_state.json"):
+        self.file_path = file_path
+
+    def execute(self):
+        try:
+            os.remove(self.file_path)
+            print("Configuration file deleted.")
+        except FileNotFoundError:
+            print("No configuration file found.")
+        except Exception as e:
+            print(f"Error deleting configuration file: {e}")
+
+
 class ToggleTTMenuAction:  
     def execute(self):
         """Finds and signals the menumonitord or MenuMonitor process."""
