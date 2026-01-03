@@ -67,6 +67,7 @@ def build_app():
         try:
             res = input("Enter custom resolution (e.g., 3840x2160): ")
             state.display_config.size = res
+            SaveStateAction(state).execute()
         except ValueError as e:
             print(f"Invalid input: {e}")
 
@@ -81,11 +82,13 @@ def build_app():
         try:
             count = int(input("Enter number of displays: "))
             state.display_config.count = count
+            SaveStateAction(state).execute()
         except ValueError as e:
             print(f"Invalid input: {e}")
 
     def set_screen_size(option):
         state.display_config.size = option
+        SaveStateAction(state).execute()
         print(f"Screen size set to {option}")
         nav.back()
 
@@ -108,6 +111,7 @@ def build_app():
                 state.dock_config.enabled = True
             except ValueError as e:
                 print(f"Invalid input: {e}")
+        SaveStateAction(state).execute()
         # input: dock name?
         # input: dock resolution?
         # save state:
@@ -240,6 +244,7 @@ def build_app():
         state.integral_config.integrals = integrals
         if not integrals:
             print("No serial USB found.")
+        SaveStateAction(state).execute()
 
     def get_display_serial_id(choice):
         result = subprocess.run(['ls /dev/tty.usb*'], shell=True, capture_output=True, text=True)
@@ -259,6 +264,7 @@ def build_app():
             if "Display is ON" in get_power_output:
                 state.display_config.serial = serial
                 print(f"Display Serial ID set to: {serial}")
+                SaveStateAction(state).execute()
             else:
                 print(f"No display found for serial: {serial}")
 
@@ -299,6 +305,7 @@ def build_app():
         if choice == "teams" or choice == "both":
             WriteDefaultsAction("TTMenu", "ThinkHubTeams", "1").execute()
             WriteDefaultsAction("automate", "VCCaptureRect", f"{placement},0,1280,720", value_type="-string").execute()
+        SaveStateAction(state).execute()
 
     # Initialize menus and sub-menus
     main_menu = Menu("Main Menu", {}, startup_art=ASCII_ART)
