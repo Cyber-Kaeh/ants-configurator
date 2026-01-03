@@ -77,11 +77,12 @@ class DisplayConfig:
 
 
 class DockConfig:
-    def __init__(self, names=None, count=1, size=None, enabled=False):
+    def __init__(self, names=None, count=1, size=None, enabled=False, total_width=0):
         self._names = names or []
         self._count = count
         self._size = size or []
         self._enabled = enabled
+        self._total_width = total_width
 
     @property
     def names(self):
@@ -126,6 +127,16 @@ class DockConfig:
     @enabled.setter
     def enabled(self, value):
         self._enabled = value
+
+    @property
+    def total_width(self):
+        return self._total_width
+
+    @total_width.setter
+    def total_width(self, value):
+        if value is not None and value < 0:
+            raise ValueError("Total width must be non-negative")
+        self._total_width = value
 
     def to_dict(self):
         return {

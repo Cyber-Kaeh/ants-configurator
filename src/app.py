@@ -139,24 +139,11 @@ def build_app():
             coord_string = f"'{{{{{current_x}, 0}}, {{{dock_width}, {dock_height}}}}}'"
             coordinates.append(coord_string)
             current_x += dock_width
+        state.dock_config.total_width = current_x
 
         WriteDefaultsAction("TTMenu", "thinkHubEnableDock", "1").execute()
         WriteDefaultsAction("TTMenu", "dockNames", state.dock_config.names, value_type="-array").execute()
         WriteDefaultsAction("TTMenu", "dockCoordinates", coordinates, value_type="-array").execute()
-
-        """
-        # build write command for screen coordinates
-        # for i, name in enumerate(state.dock_config.names):
-        #     WriteDefaultsAction("TTMenu", f"dock[{i}].name", name).execute()
-        #     WriteDefaultsAction("TTMenu", f"dock[{i}].size", state.dock_config.size[i] if i < len(state.dock_config.size) else None).execute()
-        #     WriteDefaultsAction("TTMenu", f"dock[{i}].enabled", "1" if state.dock_config.enabled else "0").execute()
-        coordinates = []
-        # for i, name in enumerate(state.dock_config.names):
-        #     coordinates.append(f"{{{{0, {i}}}}, {{{state.dock_config.placement}, {state.dock_config.height}}}}}")
-        
-
-        
-        """
 
 
     def select_integral():
@@ -283,16 +270,35 @@ def build_app():
         input("Press [Return] when ready to continue...\n")
         subprocess.run([os.path.join(SCRIPTS_DIR, "tester.sh")])
 
-    def run_software_vc_sh(choice):
-        if state.display_config.placement and state.display_config.height is None:
+    def initialize_software_vc(choice):
+        if state.display_config.placement is None or state.display_config.height is None:
             print("Error: Screen placement not set.\n" \
             "Please set screen in Display menu first.")
             return
-        placement = str(state.display_config.placement)
-        height = str(state.display_config.height)
+        if not state.dock_config.enabled:
+            resp = input("Docks should be set up before VC. Continue anyway? (y/N): ")
+            if resp.lower() not in ["y", "yes"]:
+                return
+ 
+        display_width = state.display_config.placement
+        height = state.display_config.height - 720
+        dock_width = state.dock_config.total_width
+        placement = display_width + dock_width
+        multi_string = f"{{{{{placement}, {height}}}}}, {{{{1280, 720}}}}"
 
-        subprocess.run([os.path.join(SCRIPTS_DIR, "software_vc.sh"), choice, placement, height])
+        if state.display_config.count == 1:
+            WriteDefaultsAction("TTMenu", "screenUpdateOnAllChanges", "1").execute()
+            WriteDefaultsAction("TTMenu", "desktopMoveAllWindows", "1").execute()
+        else:
+            WriteDefaultsAction("TTMenu", "screenUpdateOnAllChanges", "1").execute()
+            WriteDefaultsAction("TTMenu", "thinkHubDesktopThinkHubScreenIndex", "1").execute()
+            WriteDefaultsAction("TTMenu", "thinkHubDesktopScreenRect", multi_string, value_type="-string").execute()
 
+        if choice == "zoom" or choice == "both":
+            WriteDefaultsAction("TTMenu", "ThinkHubZoom", "1").execute()
+        if choice == "teams" or choice == "both":
+            WriteDefaultsAction("TTMenu", "ThinkHubTeams", "1").execute()
+            WriteDefaultsAction("automate", "VCCaptureRect", f"{placement},0,1280,720", value_type="-string").execute()
 
     # Initialize menus and sub-menus
     main_menu = Menu("Main Menu", {}, startup_art=ASCII_ART)
@@ -319,9 +325,9 @@ def build_app():
 
     software_vc_menu.commands.update({
         "1": ("Set up BetterDisplays", lambda: run_betterdisplays_sh()),
-        "2": ("Enable Zoom", lambda: run_software_vc_sh("zoom")),
-        "3": ("Enable Teams", lambda: run_software_vc_sh("teams")),
-        "4": ("Enable both", lambda: run_software_vc_sh("both")),
+        "2": ("Enable Zoom", lambda: initialize_software_vc("zoom")),
+        "3": ("Enable Teams", lambda: initialize_software_vc("teams")),
+        "4": ("Enable both", lambda: initialize_software_vc("both")),
         "t": ("Toggle TTMenu", lambda: ToggleTTMenuAction().execute()),
         "b": ("Back", nav.back),
         "qq": ("Quit", exit_app),
