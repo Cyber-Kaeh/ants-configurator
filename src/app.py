@@ -78,13 +78,6 @@ def build_app():
         except ValueError as e:
             print(f"Invalid input: {e}")
 
-    def display_title():
-        return (
-            f"Display Configuration\n"
-            f"Screen Count: {state.screen_count}\n"
-            f"Screen Size: {state.display_config.size}"
-        )
-
     def set_screen_count():
         try:
             count = int(input("Enter number of displays: "))
@@ -92,6 +85,10 @@ def build_app():
             SaveStateAction(state).execute()
         except ValueError as e:
             print(f"Invalid input: {e}")
+        
+        if state.display_config.count > 1:
+            WriteDefaultsAction("TTMenu", "thinkHubMediumLineDrawWidth", "10").execute()
+            WriteDefaultsAction("TTMenu", "thinkHubThickLineDrawWidth", "20").execute()
 
     def set_screen_size(option):
         state.display_config.size = option
@@ -99,7 +96,10 @@ def build_app():
         print(f"Screen size set to {option}")
         nav.back()
 
-    def set_frameScaling(option):
+    def set_frameScaling(option, include_pan_gesture=False):
+        if include_pan_gesture:
+            WriteDefaultsAction("TTMenu", "panGestureFactor", "2").execute()
+            
         WriteDefaultsAction("TTMenu", "frameScaling", option).execute()
 
     def set_touch_display_resolution(option):
@@ -135,18 +135,6 @@ def build_app():
         # input: dock resolution?
         # save state:
         # save the name to names[1], res to size[1], count ++1, enable True
-
-
-
-    def set_dock_names():
-        try:
-            names_input = input("Enter dock names as a comma-separated list\n ex: Dock1, Dock2, MTR: ")
-            names_list = [name.strip() for name in names_input.split(',')]
-            state.dock_config.names = names_list
-            SaveStateAction(state).execute()
-            print("Dock names set.")
-        except ValueError as e:
-            print(f"Invalid input: {e}")
 
     def initialize_dock():
         if state.display_config.placement is None or not state.dock_config.names:
@@ -314,7 +302,7 @@ def build_app():
         else:
             print("Error during BetterDisplays setup:")
             print(result.stderr)
-            
+
     def initialize_software_vc(choice):
         if state.display_config.placement is None or state.display_config.height is None:
             print("Error: Screen placement not set.\n" \
@@ -346,6 +334,14 @@ def build_app():
             WriteDefaultsAction("automate", "VCCaptureRect", f"{placement},0,1280,720", value_type="-string").execute()
         SaveStateAction(state).execute()
 
+    def set_magewell_defaults():
+        WriteDefaultsAction("TTMenu", "deviceSettings", "/Users/t1user/Documents/deviceSettings.plist").execute()
+        WriteDefaultsAction("TTMenu", "captureSessionDefaultAudioVolume", "0.75").execute()
+        WriteDefaultsAction("TTMenu", "thinkHubEnableTouchBack", "1").execute()
+
+    def set_max_browsers(count):
+        WriteDefaultsAction("TTMenu", "maxBrowsers", count).execute()
+
     # Initialize menus and sub-menus
     main_menu = Menu("Main Menu", {}, startup_art=ASCII_ART)
     display_config_menu = Menu("Display Configuration", {})
@@ -361,8 +357,30 @@ def build_app():
     hid_menu = Menu("HID Menu", {})
     software_vc_menu = Menu("Software VC Menu", {})
     dock_menu = Menu("Dock Menu", {})
+    other_defaults_menu = Menu("Other Misc. Defaults", {})
+    max_browsers_menu = Menu("Max Browsers Menu", {})
+
 
     # Define menu commands in dictionaries
+
+    max_browsers_menu.commands.update({
+        "1": ("CollaboratOR Lite - 4", lambda: set_max_browsers("4")),
+        "2": ("CX-02 - 5", lambda: set_max_browsers("5")),
+        "3": ("CX-06/07 - 10", lambda: set_max_browsers("10")),
+    })
+
+    other_defaults_menu.commands.update({
+        "1": ("Magewell Defaults", lambda: set_magewell_defaults()),
+        "5": ("Set Max Browsers", lambda: set_max_browsers()),
+        "2": ("Set External Headphones", lambda: RunScriptAction(LOCAL_SCRIPTS_DIR, "AudioSwitcher", "-s", "External Headphones")),
+        "3": ("Enable API Control", lambda: reset_to_factory_defaults()),
+        "4": ("Enable Multisite", lambda: set_custom_resolution()),
+        "5": ("Enable Kiosk Mode", WriteDefaultsAction("TTMenu", "KioskMode").execute()),
+        "6": ("Other Defaults", lambda: nav.push(other_defaults_menu)),
+        "b": ("Back", nav.back),
+        "qq": ("Quit", exit_app),
+    })
+
     dock_menu.commands.update({
         "1": ("Configure Dock", lambda: configure_docks()),
         "2": ("Initialize Dock", lambda: initialize_dock()),
@@ -386,6 +404,7 @@ def build_app():
         "2": ("Avocor E Defaults", print("Setting Avocor E defaults...")),
         "3": ("Avocor F Defaults", print("Setting Avocor F defaults...")),
         "t": ("Toggle TTMenu", lambda: ToggleTTMenuAction().execute()),
+        "h": ("Home", nav.home),
         "b": ("Back", nav.back),
         "qq": ("Quit", exit_app),
     })
@@ -441,12 +460,12 @@ def build_app():
     frameScaling_menu.commands.update({
         "1": ("4k 55in-65in", lambda: set_frameScaling("0.6")),
         "2": ("4k 75in", lambda: set_frameScaling("0.65")),
-        "3": ("4k 84in-98in", lambda: set_frameScaling("0.5")),
-        "4": ("5k 21:9", lambda: set_frameScaling("0.5")),
+        "3": ("4k 84in-98in", lambda: set_frameScaling("0.5", True)),
+        "4": ("5k 21:9", lambda: set_frameScaling("0.5", True)),
         "5": ("1080p 55in", lambda: set_frameScaling("1")),
         "6": ("1080p 80in", lambda: set_frameScaling("0.7")),
-        "7": ("4x2 LCD Video Wall", lambda: set_frameScaling("0.7")),
-        "8": ("4x2 LED Video Wall", lambda: set_frameScaling("0.75")),
+        "7": ("4x2 LCD Video Wall", lambda: set_frameScaling("0.7", True)),
+        "8": ("4x2 LED Video Wall", lambda: set_frameScaling("0.75", True)),
         "9": ("Default - 0.6", lambda: set_frameScaling("0.6")),
         "10": ("Default LCD/LED - 0.7", lambda: set_frameScaling("0.7")),
         "b": ("Back", nav.back),
@@ -507,7 +526,7 @@ def build_app():
         "3": ("Dock Menu", lambda: nav.push(dock_menu)),
         "4": ("Touch Menu", lambda: nav.push(touch_menu)),
         "5": ("Software VC Menu", lambda: nav.push(software_vc_menu)),
-        # "6": ("Other Defaults", lambda: nav.push(other_defaults_menu)),
+        "6": ("Other Defaults", lambda: nav.push(other_defaults_menu)),
         "t": ("Toggle TTMenu", lambda: ToggleTTMenuAction().execute()),
         "ss": ("Save Configurations", lambda: SaveStateAction(state).execute()),
         "b4": ("Load Last Configs", lambda: LoadStateAction(state).execute()),
