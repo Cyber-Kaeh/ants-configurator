@@ -293,8 +293,28 @@ def build_app():
             "it in terminal.\n\n" \
             "https://sites.google.com/a/t1v.com/process-docs/technical-knowledge-database/virtual-fitheadless-better-display-setup\n")
         input("Press [Return] when ready to continue...\n")
-        subprocess.run([os.path.join(SCRIPTS_DIR, "tester.sh")])
+        resp = input("Is TTMenu toggled down? (y/N): ")
+        if resp.lower() in ["n", "no"]:
+            ToggleTTMenuAction().execute()
 
+        print("Beginning BetterDisplays setup, this may take a few moments...")
+        placement = state.display_config.placement
+        screens = state.display_config.count
+
+        # Ensure placement and screens are strings for subprocess
+        script_path = os.path.join(SCRIPTS_DIR, "better_displays.sh")
+        result = subprocess.run(
+            [script_path, str(placement), str(screens)],
+            capture_output=True, text=True
+        )
+
+        if result.returncode == 0:
+            print("BetterDisplays setup completed successfully.")
+            print(result.stdout)
+        else:
+            print("Error during BetterDisplays setup:")
+            print(result.stderr)
+            
     def initialize_software_vc(choice):
         if state.display_config.placement is None or state.display_config.height is None:
             print("Error: Screen placement not set.\n" \
