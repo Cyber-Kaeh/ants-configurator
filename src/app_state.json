@@ -1,22 +1,16 @@
 {
     "display_config": {
-        "count": 1,
-        "size": "3840x2160",
-        "placement": 3840,
-        "height": 2160,
+        "count": null,
+        "size": null,
+        "placement": null,
+        "height": null,
         "serial": null
     },
     "dock_config": {
-        "names": [
-            "Dock1",
-            "Dock2"
-        ],
-        "count": 3,
-        "size": [
-            "1920x1080",
-            "1920x1080"
-        ],
-        "enabled": true
+        "names": [],
+        "count": 1,
+        "size": [],
+        "enabled": false
     },
     "integral_config": {
         "serial": null,

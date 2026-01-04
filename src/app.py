@@ -32,6 +32,13 @@ class MenuStack:
             self.stack.pop()
             self.stack[-1].run()
 
+    def home(self):
+        if not self.stack:
+            return
+        while len(self.stack) > 1:
+            self.stack.pop()
+        self.stack[0].run()
+
 
 def exit_app():
     sys.exit(0)
@@ -91,6 +98,18 @@ def build_app():
         SaveStateAction(state).execute()
         print(f"Screen size set to {option}")
         nav.back()
+
+    def set_frameScaling(option):
+        WriteDefaultsAction("TTMenu", "frameScaling", option).execute()
+
+    def set_touch_display_resolution(option):
+        if option == "custom":
+            try:
+                value = input("Enter custom touchDisplayResolution value: ")
+                WriteDefaultsAction("TTMenu", "touchDisplayResolution", value).execute()
+            except ValueError as e:
+                print(f"Invalid input: {e}")
+        WriteDefaultsAction("TTMenu", "touchDisplayResolution", option).execute()
 
     def configure_docks():
         finished = False
@@ -312,6 +331,8 @@ def build_app():
     display_config_menu = Menu("Display Configuration", {})
     resolution_menu = Menu("Resolution Menu", {})
     displays_menu = Menu("Displays Menu", {})
+    touchDisplay_menu = Menu("Touch Display Resolution", {})
+    frameScaling_menu = Menu("Frame Scaling Menu", {})
     display_serial_menu = Menu("Display Serial Commands", {})
     find_display_serial_menu = Menu("Select Display", {})
     integral_menu = Menu("Integral Menu", {})
@@ -384,6 +405,7 @@ def build_app():
         "2": ("Set Defaults", lambda: subprocess.run([os.path.join(SCRIPTS_DIR, "tester.sh")])),
         "3": ("Test Power On", lambda: subprocess.run([os.path.join(SCRIPTS_DIR, "tester.sh")])),
         "b": ("Back", nav.back),
+        "h": ("Home", nav.home),
         "qq": ("Quit", exit_app),
     })
 
@@ -393,6 +415,38 @@ def build_app():
         "3": ("AvocorG60", lambda: get_display_serial_id("AvocorG60")),
         "4": ("AvocorH20", lambda: get_display_serial_id("AvocorH20")),
         "b": ("Back", nav.back),
+        "qq": ("Quit", exit_app),
+    })
+
+    frameScaling_menu.commands.update({
+        "1": ("4k 55in-65in", lambda: set_frameScaling("0.6")),
+        "2": ("4k 75in", lambda: set_frameScaling("0.65")),
+        "3": ("4k 84in-98in", lambda: set_frameScaling("0.5")),
+        "4": ("5k 21:9", lambda: set_frameScaling("0.5")),
+        "5": ("1080p 55in", lambda: set_frameScaling("1")),
+        "6": ("1080p 80in", lambda: set_frameScaling("0.7")),
+        "7": ("4x2 LCD Video Wall", lambda: set_frameScaling("0.7")),
+        "8": ("4x2 LED Video Wall", lambda: set_frameScaling("0.75")),
+        "9": ("Default - 0.6", lambda: set_frameScaling("0.6")),
+        "10": ("Default LCD/LED - 0.7", lambda: set_frameScaling("0.7")),
+        "b": ("Back", nav.back),
+        "h": ("Home", nav.home),
+        "qq": ("Quit", exit_app),
+    })
+
+    touchDisplay_menu.commands.update({
+        "1": ("4k 55in-65in", lambda: set_touch_display_resolution("70")),
+        "2": ("4k 75in-98in", lambda: set_touch_display_resolution("52")),
+        "3": ("5k 21:9", lambda: set_touch_display_resolution("24")),
+        "4": ("1080p 55in", lambda: set_touch_display_resolution("40")),
+        "5": ("1080p 80in", lambda: set_touch_display_resolution("28")),
+        "6": ("4x2 LCD Video Wall", lambda: set_touch_display_resolution("40")),
+        "7": ("4x2 LED Video Wall", lambda: set_touch_display_resolution("52")),
+        "8": ("Default - 70", lambda: set_touch_display_resolution("70")),
+        "9": ("Default LCD/LED - 40", lambda: set_touch_display_resolution("40")),
+        "10": ("Custom Resolution", lambda: set_touch_display_resolution("custom")),
+        "b": ("Back", nav.back),
+        "h": ("Home", nav.home),
         "qq": ("Quit", exit_app),
     })
 
@@ -411,8 +465,11 @@ def build_app():
         "2": ("Set screen size", lambda: nav.push(resolution_menu)),
         "3": ("Show current", lambda: print(f"Screen Count: {state.display_config.count}, Screen Size: {state.display_config.size}")),
         "4": ("Set frame", set_frame),
+        "5": ("Set touchDisplayResolution", lambda: nav.push(touchDisplay_menu)),
+        "6": ("Set frameScaling", lambda: nav.push(frameScaling_menu)),
         "t": ("Toggle TTMenu", lambda: ToggleTTMenuAction().execute()),
         "b": ("Back", nav.back),
+        "h": ("Home", nav.home),
         "qq": ("Quit", exit_app),
     })
 
