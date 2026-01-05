@@ -58,3 +58,13 @@ defaults write com.t1visions.TTMenu thinkHubEnableRemoteKeyboardAction 1
 
 # Add this crontab to disable UPDD Commander so that touch events pass straight to TTMenu
 @reboot /bin/sleep 80; /usr/local/bin/upddprocesses stop -c
+
+
+Running command: defaults write com.t1visions.TTMenu MTManagerSearchPriority UPDD
+Running command: defaults write com.t1visions.TTMenu thinkHubEnableRemoteKeyboardAction 1
+Running command: /usr/local/bin/upddutils nodevice set minimum_notify_level 2
+Error running command: [Errno 2] No such file or directory: '/usr/local/bin/upddutils'
+Running command: /usr/local/bin/upddprocesses stop -c
+Error running command: [Errno 2] No such file or directory: '/usr/local/bin/upddprocesses'
+Ensured crontab entry exists: '# Disable UPDD Commander so that touch events pass straight to TTMenu'
+Ensured crontab entry exists: '@reboot /bin/sleep 80; /usr/local/bin/upddprocesses stop -c'

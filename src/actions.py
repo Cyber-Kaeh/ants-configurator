@@ -158,9 +158,14 @@ class RunIntegralSerialAction:
 
 
 class RunScriptAction:
-    def __init__(self, script_path, args):
-        self.script_path = script_path
-        self.args = args
+    def __init__(self, script_dir, script_name, *args):
+        self.script_path = os.path.join(script_dir, script_name)
+        self.args = list(args)
 
     def execute(self):
-        subprocess.run([self.script_path] + self.args)
+        command = [self.script_path] + self.args
+        try:
+            print(f"Running script: {' '.join(command)}")
+            subprocess.run(command, check=True)
+        except (subprocess.SubprocessError, FileNotFoundError) as e:
+            print(f"Error running script: {e}")

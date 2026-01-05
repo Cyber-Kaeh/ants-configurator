@@ -123,7 +123,7 @@ def build_app():
         RunCommandAction(command, success_message="UPDD minimum notify level set.").execute()
         command = ["/usr/local/bin/upddprocesses", "stop", "-c"]
         RunCommandAction(command, success_message="UPDD processes stopped.").execute()
-        crontab_label = "# Disable UPDD Commander so that touch events pass straight to TTMenu"
+        crontab_label = "\n# Disable UPDD Commander so that touch events pass straight to TTMenu"
         crontab_entry = "@reboot /bin/sleep 80; /usr/local/bin/upddprocesses stop -c"
         AddCrontabEntryAction(crontab_label).execute()
         AddCrontabEntryAction(crontab_entry).execute()
@@ -412,12 +412,11 @@ def build_app():
 
     other_defaults_menu.commands.update({
         "1": ("Magewell Defaults", lambda: set_magewell_defaults()),
-        "5": ("Set Max Browsers", lambda: set_max_browsers()),
-        "2": ("Set External Headphones", lambda: RunScriptAction(LOCAL_SCRIPTS_DIR, "AudioSwitcher", "-s", "External Headphones")),
-        "3": ("Enable API Control", lambda: RunScriptAction(SCRIPTS_DIR, "enable_api.sh")),
-        "4": ("Enable Multisite", lambda: nav.push(multisite_menu)),
-        "5": ("Enable Kiosk Mode", WriteDefaultsAction("TTMenu", "KioskMode", "0").execute()),
-        "6": ("Other Defaults", lambda: nav.push(other_defaults_menu)),
+        "2": ("Set Max Browsers", lambda: set_max_browsers()),
+        "3": ("Set External Headphones", lambda: RunScriptAction(LOCAL_SCRIPTS_DIR, "AudioSwitcher", "-s", "External Headphones").execute()),
+        "4": ("Enable API Control", lambda: RunScriptAction(SCRIPTS_DIR, "enable_api.sh").execute()),
+        "5": ("Enable Multisite", lambda: nav.push(multisite_menu)),
+        "6": ("Enable Kiosk Mode", lambda: WriteDefaultsAction("TTMenu", "KioskMode", "0").execute()),
         "b": ("Back", nav.back),
         "qq": ("Quit", exit_app),
     })
