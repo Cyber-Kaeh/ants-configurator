@@ -4,8 +4,8 @@ import subprocess
 import os
 import re
 from ascii_art import ASCII_ART
-from models import DisplayConfig, DockConfig, IntegralConfig, VCConfig
-from actions import SaveStateAction, LoadStateAction, DeleteConfigAction, ToggleTTMenuAction, WriteDefaultsAction, RunIntegralSerialAction, RunScriptAction
+from models import DisplayConfig, DockConfig, IntegralConfig, VCConfig, DeleteConfigAction
+from actions import SaveStateAction, LoadStateAction, ToggleTTMenuAction, WriteDefaultsAction, RunIntegralSerialAction, RunScriptAction, RunCommandAction, AddCrontabEntryAction
 
 SCRIPTS_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../scripts"))
 LOCAL_SCRIPTS_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "/Local/scripts"))
@@ -110,6 +110,18 @@ def build_app():
             except ValueError as e:
                 print(f"Invalid input: {e}")
         WriteDefaultsAction("TTMenu", "touchDisplayResolution", option).execute()
+
+    def set_uppd_defaults():
+        WriteDefaultsAction("TTMenu", "MTManagerSearchPriority", "UPDD").execute()
+        WriteDefaultsAction("TTMenu", "thinkHubEnableRemoteKeyboardAction", "1").execute()
+        command = ["/usr/local/bin/upddutils", "nodevice", "set", "minimum_notify_level", "2"]
+        RunCommandAction(command, success_message="UPDD minimum notify level set.").execute()
+        command = ["/usr/local/bin/upddprocesses", "stop", "-c"]
+        RunCommandAction(command, success_message="UPDD processes stopped.").execute()
+        crontab_label = "# Disable UPDD Commander so that touch events pass straight to TTMenu"
+        crontab_entry = "@reboot /bin/sleep 80; /usr/local/bin/upddprocesses stop -c"
+        AddCrontabEntryAction(crontab_label).execute()
+        AddCrontabEntryAction(crontab_entry).execute()
 
     def configure_docks():
         finished = False
@@ -342,6 +354,19 @@ def build_app():
     def set_max_browsers(count):
         WriteDefaultsAction("TTMenu", "maxBrowsers", count).execute()
 
+    def enable_multisite_smb():
+        room = input("Enter customer name for Multisite Room: ")
+        WriteDefaultsAction("TTMenu", "thinkHubMultiSite", "1").execute()
+        WriteDefaultsAction("TTMenu", "thinkHubMultiSiteRoom", room).execute()
+
+    def enable_multisite_enterprise():
+        WriteDefaultsAction("TTMenu", "thinkHubMultiSite", "1").execute()
+        resp = input("Do you want to set the IP for the Multisite Relay? (y/N): ")
+        if resp.lower() in ["y", "yes"]:
+            ip_address = input("Enter the IP address for the Multisite Relay: ")
+            WriteDefaultsAction("TTMenu", "netMessengerHostName", ip_address).execute()
+            WriteDefaultsAction("TTMenu", "janusAddress", f"ws://{ip_address}:8188").execute()
+
     # Initialize menus and sub-menus
     main_menu = Menu("Main Menu", {}, startup_art=ASCII_ART)
     display_config_menu = Menu("Display Configuration", {})
@@ -354,27 +379,38 @@ def build_app():
     integral_menu = Menu("Integral Menu", {})
     touch_menu = Menu("Touch Menu", {})
     uppd_menu = Menu("UPPD Menu", {})
-    hid_menu = Menu("HID Menu", {})
+    pq_menu = Menu("HID Menu", {})
     software_vc_menu = Menu("Software VC Menu", {})
     dock_menu = Menu("Dock Menu", {})
     other_defaults_menu = Menu("Other Misc. Defaults", {})
     max_browsers_menu = Menu("Max Browsers Menu", {})
+    multisite_menu = Menu("Multisite Menu", {})
 
 
     # Define menu commands in dictionaries
+    multisite_menu.commands.update({
+        "1": ("Enable Multisite Enterprise", lambda: enable_multisite_enterprise()),
+        "2": ("Enable Multisite SMB", lambda: enable_multisite_smb()),
+        "b": ("Back", nav.back),
+        "h": ("Home", nav.home),
+        "qq": ("Quit", exit_app),
+    })
 
     max_browsers_menu.commands.update({
         "1": ("CollaboratOR Lite - 4", lambda: set_max_browsers("4")),
         "2": ("CX-02 - 5", lambda: set_max_browsers("5")),
         "3": ("CX-06/07 - 10", lambda: set_max_browsers("10")),
+        "b": ("Back", nav.back),
+        "h": ("Home", nav.home),
+        "qq": ("Quit", exit_app),
     })
 
     other_defaults_menu.commands.update({
         "1": ("Magewell Defaults", lambda: set_magewell_defaults()),
         "5": ("Set Max Browsers", lambda: set_max_browsers()),
         "2": ("Set External Headphones", lambda: RunScriptAction(LOCAL_SCRIPTS_DIR, "AudioSwitcher", "-s", "External Headphones")),
-        "3": ("Enable API Control", lambda: reset_to_factory_defaults()),
-        "4": ("Enable Multisite", lambda: set_custom_resolution()),
+        "3": ("Enable API Control", lambda: RunScriptAction(SCRIPTS_DIR, "enable_api.sh")),
+        "4": ("Enable Multisite", lambda: nav.push(multisite_menu)),
         "5": ("Enable Kiosk Mode", WriteDefaultsAction("TTMenu", "KioskMode").execute()),
         "6": ("Other Defaults", lambda: nav.push(other_defaults_menu)),
         "b": ("Back", nav.back),
@@ -400,7 +436,7 @@ def build_app():
     })
 
     uppd_menu.commands.update({
-        "1": ("Set Defaults", lambda: subprocess.run([os.path.join(SCRIPTS_DIR, "tester.sh")])),
+        "1": ("Set Defaults", lambda: set_uppd_defaults()),
         "2": ("Avocor E Defaults", print("Setting Avocor E defaults...")),
         "3": ("Avocor F Defaults", print("Setting Avocor F defaults...")),
         "t": ("Toggle TTMenu", lambda: ToggleTTMenuAction().execute()),
@@ -409,7 +445,7 @@ def build_app():
         "qq": ("Quit", exit_app),
     })
 
-    hid_menu.commands.update({
+    pq_menu.commands.update({
         "1": ("Set Defaults", lambda: subprocess.run([os.path.join(SCRIPTS_DIR, "tester.sh")])),
         "t": ("Toggle TTMenu", lambda: ToggleTTMenuAction().execute()),
         "b": ("Back", nav.back),
@@ -418,7 +454,7 @@ def build_app():
 
     touch_menu.commands.update({
         "1": ("UPPD", lambda: nav.push(uppd_menu)),
-        "2": ("HID", lambda: nav.push(hid_menu)),
+        "2": ("PQ", lambda: nav.push(pq_menu)),
         "t": ("Toggle TTMenu", lambda: ToggleTTMenuAction().execute()),
         "b": ("Back", nav.back),
         "qq": ("Quit", exit_app),

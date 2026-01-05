@@ -100,6 +100,44 @@ class WriteDefaultsAction:
         subprocess.run(command, check=True)
 
 
+class RunCommandAction:
+    def __init__(self, command, success_message="Command executed successfully."):
+        self.command = command
+        self.success_message = success_message
+
+    def execute(self):
+        """Executes a generic shell command. Commands are built using a list."""
+        try:
+            print(f"Running command: {' '.join(self.command)}")
+            result = subprocess.run(self.command, check=True, capture_output=True, text=True)
+            print(self.success_message)
+            if result.stdout:
+                print(result.stdout)
+        except (subprocess.SubprocessError, FileNotFoundError) as e:
+            print(f"Error running command: {e}")
+
+
+class AddCrontabEntryAction:
+    def __init__(self, label, entry):
+        self.label = label
+        self.entry = entry
+
+    def execute(self):
+        """Adds an entry to the user's crontab if it doesn't already exist."""
+        try:
+            # The command to safely add a crontab entry.
+            # It lists the current crontab, checks if the entry exists, and if not, appends it.
+            command = f'(crontab -l 2>/dev/null | grep -Fq -- "{self.entry}") || (crontab -l 2>/dev/null; echo "{self.entry}") | crontab -'
+            result = subprocess.run(command, shell=True, check=True, capture_output=True, text=True)
+            print(f"Ensured crontab entry exists: '{self.entry}'")
+            if result.stderr:
+                # crontab -l on an empty crontab outputs to stderr, which is normal.
+                # We can ignore it unless there's a real error.
+                if "no crontab for" not in result.stderr:
+                    print(f"Crontab command produced warnings: {result.stderr}")
+        except subprocess.CalledProcessError as e:
+            print(f"Error setting crontab entry: {e}\n{e.stderr}")
+
 class RunIntegralSerialAction:
     def __init__(self, serial, command):
         self.serial = serial
