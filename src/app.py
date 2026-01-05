@@ -46,6 +46,10 @@ def exit_app():
 def build_app():
     state = AppState()
     nav = MenuStack()
+    try:
+        LoadStateAction(state).execute()
+    except Exception as e:
+        print(f"Error loading state: {e}")
 
     def calculate_frame():
         try:
@@ -297,7 +301,15 @@ def build_app():
             "please copy the command from library page and run\n"
             "it in terminal.\n\n" \
             "https://sites.google.com/a/t1v.com/process-docs/technical-knowledge-database/virtual-fitheadless-better-display-setup\n")
-        input("Press [Return] when ready to continue...\n")
+        continue_resp = input("Type:\n"
+                              "[Q]uit to stop and enter license\n"
+                              "[B]ack to return to previous menu\n"
+                              "Any other key to continue...\n> ")
+        if continue_resp.lower() == "q" or continue_resp.lower() == "quit":
+            exit_app()
+        elif continue_resp.lower() == "b" or continue_resp.lower() == "back":
+            return
+
         resp = input("Is TTMenu toggled down? (y/N): ")
         if resp.lower() in ["n", "no"]:
             ToggleTTMenuAction().execute()
@@ -358,6 +370,7 @@ def build_app():
 
     def set_max_browsers(count):
         WriteDefaultsAction("TTMenu", "maxBrowsers", count).execute()
+        nav.back()
 
     def enable_multisite_smb():
         room = input("Enter customer name for Multisite Room: ")
@@ -412,7 +425,7 @@ def build_app():
 
     other_defaults_menu.commands.update({
         "1": ("Magewell Defaults", lambda: set_magewell_defaults()),
-        "2": ("Set Max Browsers", lambda: set_max_browsers()),
+        "2": ("Set Max Browsers", lambda: nav.push(max_browsers_menu)),
         "3": ("Set External Headphones", lambda: RunScriptAction(LOCAL_SCRIPTS_DIR, "AudioSwitcher", "-s", "External Headphones").execute()),
         "4": ("Enable API Control", lambda: RunScriptAction(SCRIPTS_DIR, "enable_api.sh").execute()),
         "5": ("Enable Multisite", lambda: nav.push(multisite_menu)),
@@ -441,8 +454,8 @@ def build_app():
 
     uppd_menu.commands.update({
         "1": ("Set Defaults", lambda: set_uppd_defaults()),
-        "2": ("Avocor E Defaults", print("Setting Avocor E defaults...")),
-        "3": ("Avocor F Defaults", print("Setting Avocor F defaults...")),
+        # "2": ("Avocor E Defaults", print("Setting Avocor E defaults...")),
+        # "3": ("Avocor F Defaults", print("Setting Avocor F defaults...")),
         "t": ("Toggle TTMenu", lambda: ToggleTTMenuAction().execute()),
         "h": ("Home", nav.home),
         "b": ("Back", nav.back),
