@@ -1,12 +1,13 @@
 
 
 class DisplayConfig:
-    def __init__(self, count=None, size=None, placement=None, height=None, serial=None):
+    def __init__(self, count=None, size=None, placement=None, height=None, serial=None, model=None):
         self._count = count
         self._size = size
         self._placement = placement
         self._height = height
         self._serial = serial
+        self._model = model
 
     @property
     def count(self):
@@ -56,6 +57,16 @@ class DisplayConfig:
     def serial(self, value):
         self._serial = value
 
+    @property
+    def model(self):
+        return self._model
+
+    @model.setter
+    def model(self, value):
+        if value is not None and value.strip() == "":
+            raise ValueError("Screen model cannot be empty")
+        self._model = value
+
     def to_dict(self):
         return {
             "count": self.count,
@@ -63,6 +74,7 @@ class DisplayConfig:
             "placement": self.placement,
             "height": self.height,
             "serial": self.serial,
+            "model": self.model,
         }
 
     @classmethod

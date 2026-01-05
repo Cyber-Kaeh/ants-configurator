@@ -1,0 +1,7 @@
+Get someone else to test UI/UX
+Set up a new device with periphrials for testing
+Clean up scripts folder
+Clean up code base of comments or unused lines
+Test crontab actions
+  Add crontabs for integrals and display serial
+  Add PQ menu and crontabs

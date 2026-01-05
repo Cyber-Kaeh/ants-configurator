@@ -274,6 +274,26 @@ def build_app():
             print("No serial USB found.")
         SaveStateAction(state).execute()
 
+    def set_display_serial_crontab():
+        label_entry = "\n#Checks display(s) signal status"
+        crontab_entry = "@reboot /bin/sleep 200; /usr/local/bin/python /Local/scripts/DisplayMegaScript.py --fix --notify --reboot"
+        AddCrontabEntryAction(label_entry).execute()
+        AddCrontabEntryAction(crontab_entry).execute()
+
+    def set_display_serial_defaults(model):
+        if not state.display_config.serial:
+            print("No display serial found, run 1) Find USB Serial #.")
+            return
+        serial = state.display_config.serial
+        state.display_config.model = model
+        SaveStateAction(state).execute()
+        subprocess.run([os.path.join(LOCAL_SCRIPTS_DIR, f"{model}.sh"), serial])
+
+        displays_list = ["AvocorH20", "AvocorF50", "AvocorG60"]
+        if model in displays_list:
+            print("Adding crontab for displayMegaScript.py")
+            set_display_serial_crontab()
+
     def get_display_serial_id(choice):
         result = subprocess.run(['ls /dev/tty.usb*'], shell=True, capture_output=True, text=True)
         output = result.stdout
@@ -393,6 +413,7 @@ def build_app():
     touchDisplay_menu = Menu("Touch Display Resolution", {})
     frameScaling_menu = Menu("Frame Scaling Menu", {})
     display_serial_menu = Menu("Display Serial Commands", {})
+    display_serial_defaults_menu = Menu("Display Serial Defaults", {})
     find_display_serial_menu = Menu("Select Display", {})
     integral_menu = Menu("Integral Menu", {})
     touch_menu = Menu("Touch Menu", {})
@@ -494,8 +515,9 @@ def build_app():
 
     display_serial_menu.commands.update({
         "1": ("Find USB Serial #", lambda: nav.push(find_display_serial_menu)),
-        "2": ("Set Defaults", lambda: subprocess.run([os.path.join(SCRIPTS_DIR, "tester.sh")])),
-        "3": ("Test Power On", lambda: subprocess.run([os.path.join(SCRIPTS_DIR, "tester.sh")])),
+        "2": ("Set Defaults", lambda: nav.push(display_serial_defaults_menu)),
+        "3": ("Set crontab", lambda: set_display_serial_crontab()),
+        "4": ("Test Power On", lambda: subprocess.run([os.path.join(SCRIPTS_DIR, "tester.sh")])),
         "b": ("Back", nav.back),
         "h": ("Home", nav.home),
         "qq": ("Quit", exit_app),
@@ -506,6 +528,15 @@ def build_app():
         "2": ("Avocor F50", lambda: get_display_serial_id("AvocorF50")),
         "3": ("AvocorG60", lambda: get_display_serial_id("AvocorG60")),
         "4": ("AvocorH20", lambda: get_display_serial_id("AvocorH20")),
+        "b": ("Back", nav.back),
+        "qq": ("Quit", exit_app),
+    })
+
+    display_serial_defaults_menu.commands.update({
+        "1": ("Avocor E50", lambda: set_display_serial_defaults("AvocorE50")),
+        "2": ("Avocor F50", lambda: set_display_serial_defaults("AvocorF50")),
+        "3": ("AvocorG60", lambda: set_display_serial_defaults("AvocorG60")),
+        "4": ("AvocorH20", lambda: set_display_serial_defaults("AvocorH20")),
         "b": ("Back", nav.back),
         "qq": ("Quit", exit_app),
     })
