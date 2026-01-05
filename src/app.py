@@ -101,15 +101,20 @@ def build_app():
             WriteDefaultsAction("TTMenu", "panGestureFactor", "2").execute()
             
         WriteDefaultsAction("TTMenu", "frameScaling", option).execute()
+        nav.back()
 
     def set_touch_display_resolution(option):
         if option == "custom":
             try:
                 value = input("Enter custom touchDisplayResolution value: ")
                 WriteDefaultsAction("TTMenu", "touchDisplayResolution", value).execute()
+                print(f"touchDisplayResolution set to {value}")
             except ValueError as e:
                 print(f"Invalid input: {e}")
-        WriteDefaultsAction("TTMenu", "touchDisplayResolution", option).execute()
+        else:
+            WriteDefaultsAction("TTMenu", "touchDisplayResolution", option).execute()
+            print(f"touchDisplayResolution set to {option}")
+        nav.back()
 
     def set_uppd_defaults():
         WriteDefaultsAction("TTMenu", "MTManagerSearchPriority", "UPDD").execute()
@@ -566,6 +571,7 @@ def build_app():
         "t": ("Toggle TTMenu", lambda: ToggleTTMenuAction().execute()),
         "ss": ("Save Configurations", lambda: SaveStateAction(state).execute()),
         "b4": ("Load Last Configs", lambda: LoadStateAction(state).execute()),
+        "vs": ("View Current Configurations", lambda: subprocess.run(["cat", "app_state.json"])),
         "dd": ("Delete Configurations", lambda: DeleteConfigAction().execute()),
         "qq": ("Quit", exit_app),
     })

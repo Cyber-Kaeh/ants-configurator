@@ -118,8 +118,7 @@ class RunCommandAction:
 
 
 class AddCrontabEntryAction:
-    def __init__(self, label, entry):
-        self.label = label
+    def __init__(self, entry):
         self.entry = entry
 
     def execute(self):

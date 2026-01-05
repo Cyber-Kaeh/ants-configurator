@@ -77,7 +77,7 @@ class DisplayConfig:
 
 
 class DockConfig:
-    def __init__(self, names=None, count=1, size=None, enabled=False, total_width=0):
+    def __init__(self, names=None, count=0, size=None, enabled=False, total_width=0):
         self._names = names or []
         self._count = count
         self._size = size or []
