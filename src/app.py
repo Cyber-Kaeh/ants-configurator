@@ -4,8 +4,8 @@ import subprocess
 import os
 import re
 from ascii_art import ASCII_ART
-from models import DisplayConfig, DockConfig, IntegralConfig, VCConfig, DeleteConfigAction
-from actions import SaveStateAction, LoadStateAction, ToggleTTMenuAction, WriteDefaultsAction, RunIntegralSerialAction, RunScriptAction, RunCommandAction, AddCrontabEntryAction
+from models import DisplayConfig, DockConfig, IntegralConfig, VCConfig
+from actions import SaveStateAction, LoadStateAction, ToggleTTMenuAction, WriteDefaultsAction, DeleteConfigAction, RunIntegralSerialAction, RunScriptAction, RunCommandAction, AddCrontabEntryAction
 
 SCRIPTS_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../scripts"))
 LOCAL_SCRIPTS_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "/Local/scripts"))
@@ -411,7 +411,7 @@ def build_app():
         "2": ("Set External Headphones", lambda: RunScriptAction(LOCAL_SCRIPTS_DIR, "AudioSwitcher", "-s", "External Headphones")),
         "3": ("Enable API Control", lambda: RunScriptAction(SCRIPTS_DIR, "enable_api.sh")),
         "4": ("Enable Multisite", lambda: nav.push(multisite_menu)),
-        "5": ("Enable Kiosk Mode", WriteDefaultsAction("TTMenu", "KioskMode").execute()),
+        "5": ("Enable Kiosk Mode", WriteDefaultsAction("TTMenu", "KioskMode", "0").execute()),
         "6": ("Other Defaults", lambda: nav.push(other_defaults_menu)),
         "b": ("Back", nav.back),
         "qq": ("Quit", exit_app),
