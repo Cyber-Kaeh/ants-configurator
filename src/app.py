@@ -143,8 +143,6 @@ def build_app():
                 dock_res = input("Enter dock resolution (e.g., 1920x1080): ")
                 if not re.match(r"^\d+x\d+$", dock_res):
                     raise ValueError("Invalid format. Use widthxheight (e.g., 1920x1080).")
-                state.dock_config.size = dock_res
-                print(f"Dock size set to {dock_res}.")
                 state.dock_config.names.append(dock_name)
                 state.dock_config.size.append(dock_res)
                 state.dock_config.count += 1
@@ -152,21 +150,16 @@ def build_app():
             except ValueError as e:
                 print(f"Invalid input: {e}")
         SaveStateAction(state).execute()
-        # input: dock name?
-        # input: dock resolution?
-        # save state:
-        # save the name to names[1], res to size[1], count ++1, enable True
 
     def initialize_dock():
         if state.display_config.placement is None or not state.dock_config.names:
             print("Screen placement and/or dock names not set.")
             return
-        
+
         coordinates = []
         current_x = state.display_config.placement
-        # dock_width, dock_height = map(int, state.dock_config.size.split('x'))
 
-        for i, dock_name in enumerate(state.dock_config.names):
+        for i in range(state.dock_config.count):
             dock_width, dock_height = map(int, state.dock_config.size[i].split('x'))
             coord_string = f"'{{{{{current_x}, 0}}, {{{dock_width}, {dock_height}}}}}'"
             coordinates.append(coord_string)
@@ -290,7 +283,7 @@ def build_app():
         serial = state.display_config.serial
         state.display_config.model = model
         SaveStateAction(state).execute()
-        subprocess.run([os.path.join(LOCAL_SCRIPTS_DIR, f"{model}.sh"), serial])
+        subprocess.run([os.path.join(LOCAL_SERIAL_DIR, f"{model}.sh"), serial])
 
         displays_list = ["AvocorH20", "AvocorF50", "AvocorG60"]
         if model in displays_list:
