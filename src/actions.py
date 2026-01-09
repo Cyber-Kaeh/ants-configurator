@@ -59,6 +59,26 @@ class DeleteConfigAction:
             print(f"Error deleting configuration file: {e}")
 
 
+class ClearConfigAction:
+    def __init__(self, state, config_name):
+        self.state = state
+        self.config_name = config_name
+        self.config_map = {
+            "display": ("display_config", DisplayConfig),
+            "dock": ("dock_config", DockConfig),
+            "integral": ("integral_config", IntegralConfig),
+            "vc": ("vc_config", VCConfig),
+        }
+
+    def execute(self):
+        """Resets a specific part of the application state to its default."""
+        if self.config_name in self.config_map:
+            attr_name, config_class = self.config_map[self.config_name]
+            setattr(self.state, attr_name, config_class())
+            print(f"{self.config_name.capitalize()} configuration has been cleared.")
+        else:
+            print(f"Error: Unknown configuration '{self.config_name}'")
+
 class ToggleTTMenuAction:  
     def execute(self):
         """Finds and signals the menumonitord or MenuMonitor process."""

@@ -4,8 +4,8 @@ import subprocess
 import os
 import re
 from ascii_art import ASCII_ART
-from models import DisplayConfig, DockConfig, IntegralConfig, VCConfig
-from actions import SaveStateAction, LoadStateAction, ToggleTTMenuAction, WriteDefaultsAction, DeleteConfigAction, RunIntegralSerialAction, RunScriptAction, RunCommandAction, AddCrontabEntryAction
+from models import DisplayConfig, DockConfig, IntegralConfig, VCConfig, DeleteConfigAction
+from actions import SaveStateAction, LoadStateAction, ToggleTTMenuAction, WriteDefaultsAction, RunIntegralSerialAction, RunScriptAction, RunCommandAction, AddCrontabEntryAction, ClearConfigAction
 
 SCRIPTS_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../scripts"))
 LOCAL_SCRIPTS_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "/Local/scripts"))
@@ -93,6 +93,7 @@ def build_app():
         if state.display_config.count > 1:
             WriteDefaultsAction("TTMenu", "thinkHubMediumLineDrawWidth", "10").execute()
             WriteDefaultsAction("TTMenu", "thinkHubThickLineDrawWidth", "20").execute()
+            state.vc_config.multi_display = True
 
     def set_screen_size(option):
         state.display_config.size = option
@@ -421,6 +422,7 @@ def build_app():
     max_browsers_menu = Menu("Max Browsers Menu", {})
     multisite_menu = Menu("Multisite Menu", {})
 
+    clear_config_menu = Menu("Clear Configurations", {})
 
     # Define menu commands in dictionaries
     multisite_menu.commands.update({
@@ -429,6 +431,15 @@ def build_app():
         "b": ("Back", nav.back),
         "h": ("Home", nav.home),
         "qq": ("Quit", exit_app),
+    })
+
+    clear_config_menu.commands.update({
+        "1": ("Clear Display Config", lambda: ClearConfigAction(state, "display").execute()),
+        "2": ("Clear Dock Config", lambda: ClearConfigAction(state, "dock").execute()),
+        "3": ("Clear Integral Config", lambda: ClearConfigAction(state, "integral").execute()),
+        "4": ("Clear Software VC Config", lambda: ClearConfigAction(state, "vc").execute()),
+        "b": ("Back", nav.back),
+        "h": ("Home", nav.home),
     })
 
     max_browsers_menu.commands.update({
@@ -611,6 +622,7 @@ def build_app():
         "ss": ("Save Configurations", lambda: SaveStateAction(state).execute()),
         "b4": ("Load Last Configs", lambda: LoadStateAction(state).execute()),
         "vs": ("View Current Configurations", lambda: subprocess.run(["cat", "app_state.json"])),
+        "cc": ("Clear Configurations", lambda: nav.push(clear_config_menu)),
         "dd": ("Delete Configurations", lambda: DeleteConfigAction().execute()),
         "qq": ("Quit", exit_app),
     })

@@ -18,6 +18,25 @@ Add a screensave option. maybe a toggle as well. could comment out the crontab
 Add error checking on dock naming. make a list of common resolutions then check 
   response against that list. if not in list, prompt user to continue/abandon
 
+*Need a way to clear specific configs*
+example, tried to set docks again after configuring once and got
+index out of bounds error.
+    "dock_config": {
+        "names": [
+            "Dock1",
+            "Dock1",
+            "MTR"
+        ],
+        "count": 3,
+        "size": [
+            "1920x1080",
+            "1920x1080"
+        ],
+        "enabled": true
+    },
 
+*Enable API in other defaults not working*
+Running script: /Users/t1user/Downloads/ants-configurator/scripts/enable_api.sh
+Load failed: 5: Input/output error
+Try running `launchctl bootstrap` as root for richer errors.
 
-I think dock resolutions might be getting added twice
