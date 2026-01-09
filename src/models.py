@@ -150,6 +150,12 @@ class DockConfig:
             raise ValueError("Total width must be non-negative")
         self._total_width = value
 
+    def add_dock(self, name, size):
+        self._names.append(name)
+        self._size.append(size)
+        self._count += 1
+        self._enabled = True
+
     def to_dict(self):
         return {
             "names": self.names,

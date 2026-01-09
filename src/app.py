@@ -4,8 +4,8 @@ import subprocess
 import os
 import re
 from ascii_art import ASCII_ART
-from models import DisplayConfig, DockConfig, IntegralConfig, VCConfig, DeleteConfigAction
-from actions import SaveStateAction, LoadStateAction, ToggleTTMenuAction, WriteDefaultsAction, RunIntegralSerialAction, RunScriptAction, RunCommandAction, AddCrontabEntryAction, ClearConfigAction
+from models import DisplayConfig, DockConfig, IntegralConfig, VCConfig
+from actions import SaveStateAction, LoadStateAction, DeleteConfigAction, ToggleTTMenuAction, WriteDefaultsAction, RunIntegralSerialAction, RunScriptAction, RunCommandAction, AddCrontabEntryAction, ClearConfigAction
 
 SCRIPTS_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../scripts"))
 LOCAL_SCRIPTS_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "/Local/scripts"))
@@ -133,23 +133,43 @@ def build_app():
         AddCrontabEntryAction(crontab_label).execute()
         AddCrontabEntryAction(crontab_entry).execute()
 
+    def get_confirmed_input(prompt, common_list):
+        while True:
+            val = input(prompt)
+            if val.lower() == 'done' or val in common_list:
+                return val
+            
+            confirm = input(f"Warning: '{val}' is not a common name. Continue anyway? (y/N): ")
+            if confirm.lower() in ['y', 'yes']:
+                return val
+            print("Entry cancelled. Try again.")
+
     def configure_docks():
-        finished = False
-        while not finished:
-            try:
-                dock_name = input("Enter dock name (or 'done' to finish): ")
-                if dock_name.lower() == 'done':
-                    finished = True
+        common_names = ["Dock1", "Dock2", "Dock3", "Dock4", "Dock", "MTR"]
+        common_res = ["1280x720","1920x1080", "3840x2160"]
+        while True:
+            dock_name = get_confirmed_input(
+                "Enter dock name (or 'done' if finished): ", common_names)
+            
+            if dock_name.lower() == 'done':
+                break
+
+            while True:
+                res = input("Enter resolution (e.g., 1920x1080): ")
+                if res.lower() == 'done':
+                    break
+                if not re.match(r"^\d+x\d+$", res):
+                    print(f"Invalid format: '{res}'. Use widthxheight (e.g., 1920x1080). Please try again.")
                     continue
-                dock_res = input("Enter dock resolution (e.g., 1920x1080): ")
-                if not re.match(r"^\d+x\d+$", dock_res):
-                    raise ValueError("Invalid format. Use widthxheight (e.g., 1920x1080).")
-                state.dock_config.names.append(dock_name)
-                state.dock_config.size.append(dock_res)
-                state.dock_config.count += 1
-                state.dock_config.enabled = True
-            except ValueError as e:
-                print(f"Invalid input: {e}")
+                if not res in common_res:
+                    confirm = input(f"Warning: {res} is not a common resolution. Continue anyway? (y/N): ")
+                    if confirm.lower() not in ['y', 'yes']:
+                        continue
+
+                state.dock_config.add_dock(dock_name, res)
+                print(f"Added {dock_name} with resolution: {res}")
+                break
+
         SaveStateAction(state).execute()
 
     def initialize_dock():
@@ -421,7 +441,6 @@ def build_app():
     other_defaults_menu = Menu("Other Misc. Defaults", {})
     max_browsers_menu = Menu("Max Browsers Menu", {})
     multisite_menu = Menu("Multisite Menu", {})
-
     clear_config_menu = Menu("Clear Configurations", {})
 
     # Define menu commands in dictionaries

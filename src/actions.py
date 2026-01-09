@@ -76,6 +76,7 @@ class ClearConfigAction:
             attr_name, config_class = self.config_map[self.config_name]
             setattr(self.state, attr_name, config_class())
             print(f"{self.config_name.capitalize()} configuration has been cleared.")
+            SaveStateAction(self.state).execute()
         else:
             print(f"Error: Unknown configuration '{self.config_name}'")
 
