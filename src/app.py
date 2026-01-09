@@ -249,6 +249,7 @@ def build_app():
         if selected_key:
             serial = state.integral_config.integrals[selected_key]['serial']
             print(f"Interrogating Integral with Serial ID: {serial}")
+            print("Be patient... this can take a minute...")
             script_path = os.path.join(LOCAL_SCRIPTS_DIR, "integralStatus.py")
             result = subprocess.run(
                 [sys.executable, script_path, "--serial", f"/dev/tty.usbserial-{serial}", "--interrogate"],
@@ -305,7 +306,7 @@ def build_app():
         serial = state.display_config.serial
         state.display_config.model = model
         SaveStateAction(state).execute()
-        subprocess.run([os.path.join(LOCAL_SERIAL_DIR, f"{model}.sh"), serial])
+        subprocess.run([os.path.join(LOCAL_SERIAL_DIR, f"{model}.py"), serial])
 
         displays_list = ["AvocorH20", "AvocorF50", "AvocorG60"]
         if model in displays_list:
@@ -410,6 +411,10 @@ def build_app():
         WriteDefaultsAction("TTMenu", "maxBrowsers", count).execute()
         nav.back()
 
+    def enable_api_server():
+        RunCommandAction(["cp", "/Local/scripts/externalCommand/com.t1v.externalCommandTelnetServer3.plist", "/Library/LaunchAgents/"]).execute()
+        RunCommandAction(["launchctl", "load", "/Library/LaunchAgents/com.t1v.externalCommandTelnetServer3.plist"]).execute()
+
     def enable_multisite_smb():
         room = input("Enter customer name for Multisite Room: ")
         WriteDefaultsAction("TTMenu", "thinkHubMultiSite", "1").execute()
@@ -475,7 +480,7 @@ def build_app():
         "1": ("Magewell Defaults", lambda: set_magewell_defaults()),
         "2": ("Set Max Browsers", lambda: nav.push(max_browsers_menu)),
         "3": ("Set External Headphones", lambda: RunScriptAction(LOCAL_SCRIPTS_DIR, "AudioSwitcher", "-s", "External Headphones").execute()),
-        "4": ("Enable API Control", lambda: RunScriptAction(SCRIPTS_DIR, "enable_api.sh").execute()),
+        "4": ("Enable API Control", lambda: enable_api_server()),
         "5": ("Enable Multisite", lambda: nav.push(multisite_menu)),
         "6": ("Enable Kiosk Mode", lambda: WriteDefaultsAction("TTMenu", "KioskMode", "0").execute()),
         "b": ("Back", nav.back),
