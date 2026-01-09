@@ -1,3 +1,5 @@
+Add spdisplays command to display menu
+Add pfstop somewhere
 Get someone else to test UI/UX
 Set up a new device with periphrials for testing
 Clean up scripts folder
@@ -5,3 +7,14 @@ Clean up code base of comments or unused lines
 Test crontab actions
   Add crontabs for integrals and display serial
   Add PQ menu and crontabs
+Add a wildcard command action. Take input and create a list. Iterate that list into
+  a subprocess command. Allows the user to run arbitrary shell commands while still
+  in the app.
+Rework the find integral # function. Currently it found the first integral on the 
+  2nd pass so it assigns integral 1 to number 2. Not really a bug but a UX improvement
+Add message to interrogate command to notify user it takes a while to get feedback
+Add a screensave option. maybe a toggle as well. could comment out the crontab
+  for off and check for a comment then remove it for on.
+Add error checking on dock naming. make a list of common resolutions then check 
+  response against that list. if not in list, prompt user to continue/abandon
+

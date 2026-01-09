@@ -174,8 +174,11 @@ def build_app():
         state.dock_config.total_width = current_x
 
         WriteDefaultsAction("TTMenu", "thinkHubEnableDock", "1").execute()
-        WriteDefaultsAction("TTMenu", "dockNames", state.dock_config.names, value_type="-array").execute()
-        WriteDefaultsAction("TTMenu", "dockCoordinates", coordinates, value_type="-array").execute()
+        WriteDefaultsAction("TTMenu", "multiViewScreenLabels", state.dock_config.names, value_type="-array").execute()
+        WriteDefaultsAction("TTMenu", "multiViewScreenCoordinates", coordinates, value_type="-array").execute()
+        WriteDefaultsAction("TTMenu", "disableHideInfoPanelOnCast", "1").execute()
+        WriteDefaultsAction("TTMenu", "disableHideInfoPanelOnHideTray", "1").execute()
+        WriteDefaultsAction("TTMenu", "thinkHubDockShowCanvasOnUndock", "1").execute()
 
 
     def select_integral():
