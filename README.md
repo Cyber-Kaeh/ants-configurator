@@ -1,5 +1,5 @@
 ## ants-configurator
-
+```
 _________   _____  ___      ___ ________  ________     
 |\___   ___\/ __  \|\  \    /  /|\   __  \|\   ____\    
 \|___ \  \_|\/_|\  \ \  \  /  / | \  \|\  \ \  \___|    
@@ -8,19 +8,19 @@ _________   _____  ___      ___ ________  ________
        \ \__\    \ \__\ \__/ /     \ \_____  \ \_______\
         \|__|     \|__|\|__|/       \|___| \__\|_______|
                                           \|__|         
-
+```
 
 A menu driven CLI tool to help speed up the post-imaging process for ThinkHub devices.
 
 ## Getting Started
 
-Clone this repository to the target device.
+Clone this repository to the target device.  
 `git clone github.com/Cyber-Kaeh/ants-configurator.get`
 
-Navigate to the src dir.
+Navigate to the src dir.  
 `cd ants-configurator/src`
 
-Run the app.
+Run the app.  
 `python __main__.py`
 
 Go through the menus to commence configuratortating! Or jump around as needed. 
