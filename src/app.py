@@ -10,6 +10,7 @@ from actions import SaveStateAction, LoadStateAction, DeleteConfigAction, Toggle
 SCRIPTS_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../scripts"))
 LOCAL_SCRIPTS_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "/Local/scripts"))
 LOCAL_SERIAL_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "/Local/scripts/serial"))
+T1VAPPS_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "/Users/t1user/T1VApps"))
 
 class AppState:
     def __init__(self):
@@ -625,6 +626,8 @@ def build_app():
     displays_menu.commands.update({
         "1": ("Displays Configuration", lambda: nav.push(display_config_menu)),
         "2": ("Serial Commands Menu", lambda: nav.push(display_serial_menu)),
+        "3": ("SPDisplays", lambda: RunCommandAction(["/usr/sbin/system_profiler", "SPDisplaysDataType"]).execute()),
+        "4": ("Run screensave", lambda: RunCommandAction([os.path.join(T1VAPPS_DIR, "screenArrange/screenArrange"), "save"]).execute()),
         "t": ("Toggle TTMenu", lambda: ToggleTTMenuAction().execute()),
         "b": ("Back", nav.back),
         "qq": ("Quit", exit_app),
@@ -638,7 +641,7 @@ def build_app():
         "5": ("Software VC Menu", lambda: nav.push(software_vc_menu)),
         "6": ("Other Defaults", lambda: nav.push(other_defaults_menu)),
         "t": ("Toggle TTMenu", lambda: ToggleTTMenuAction().execute()),
-        "ss": ("Save Configurations", lambda: SaveStateAction(state).execute()),
+        "pf": ("Disable Firewall", lambda: subprocess.run(["sudo", "/sbin/pfctl", "-d"])),
         "b4": ("Load Last Configs", lambda: LoadStateAction(state).execute()),
         "vs": ("View Current Configurations", lambda: subprocess.run(["cat", "app_state.json"])),
         "cc": ("Clear Configurations", lambda: nav.push(clear_config_menu)),

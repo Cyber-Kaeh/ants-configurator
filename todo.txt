@@ -1,5 +1,5 @@
 Add spdisplays command to display menu
-Add pfstop somewhere
+(testing)Add pfstop somewhere
 Get someone else to test UI/UX
 Set up a new device with periphrials for testing
 Clean up scripts folder
@@ -15,12 +15,6 @@ Rework the find integral # function. Currently it found the first integral on th
 Add message to interrogate command to notify user it takes a while to get feedback
 Add a screensave option. maybe a toggle as well. could comment out the crontab
   for off and check for a comment then remove it for on.
-Add error checking on dock naming. make a list of common resolutions then check 
-  response against that list. if not in list, prompt user to continue/abandon
-
-*Need a MUCH more robust error handling for dock config menu*
-should run a check before running config menu.
-need better feedback on names
 
 
 *Enable API in other defaults not working*
