@@ -15,7 +15,7 @@ A menu driven CLI tool to help speed up the post-imaging process for ThinkHub de
 ## Getting Started
 
 Clone this repository to the target device.  
-`git clone github.com/Cyber-Kaeh/ants-configurator.get`
+`git clone github.com/Cyber-Kaeh/ants-configurator.git`
 
 Navigate to the src dir.  
 `cd ants-configurator/src`
