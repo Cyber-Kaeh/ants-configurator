@@ -63,6 +63,7 @@ def build_app():
             total_width = width * count
             state.display_config.height = height
             state.display_config.placement = total_width
+            SaveStateAction(state).execute()
             print(f"Calculated frame size: {total_width}x{height}")
         except Exception as e:
             print(f"Error calculating frame: {e}")
@@ -306,7 +307,7 @@ def build_app():
         serial = state.display_config.serial
         state.display_config.model = model
         SaveStateAction(state).execute()
-        subprocess.run([os.path.join(LOCAL_SERIAL_DIR, f"{model}.py"), serial])
+        RunCommandAction([sys.executable, os.path.join(LOCAL_SERIAL_DIR, f"{model}.py"), serial]).execute()
 
         displays_list = ["AvocorH20", "AvocorF50", "AvocorG60"]
         if model in displays_list:
