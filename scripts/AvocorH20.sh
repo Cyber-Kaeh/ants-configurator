@@ -1,4 +1,6 @@
- serial=$1
+#!/bin/bash
+
+serial=$1
 
 defaults write com.t1visions.SerialScripts "Display 1" -dict-add "Name" "Main 4K Avocor"
 

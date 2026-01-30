@@ -295,7 +295,7 @@ def build_app():
         SaveStateAction(state).execute()
 
     def set_display_serial_crontab():
-        label_entry = "\n#Checks display(s) signal status"
+        label_entry = "#Checks display(s) signal status"
         crontab_entry = "@reboot /bin/sleep 200; /usr/local/bin/python /Local/scripts/DisplayMegaScript.py --fix --notify --reboot"
         AddCrontabEntryAction(label_entry).execute()
         AddCrontabEntryAction(crontab_entry).execute()
@@ -307,7 +307,8 @@ def build_app():
         serial = state.display_config.serial
         state.display_config.model = model
         SaveStateAction(state).execute()
-        RunCommandAction([sys.executable, os.path.join(LOCAL_SERIAL_DIR, f"{model}.py"), serial]).execute()
+        RunScriptAction(SCRIPTS_DIR, f"{model}.sh", serial).execute()
+        # RunScriptAction([sys.executable, os.path.join(LOCAL_SERIAL_DIR, f"{model}.py"), serial]).execute()
 
         displays_list = ["AvocorH20", "AvocorF50", "AvocorG60"]
         if model in displays_list:
