@@ -1,3 +1,6 @@
+# Ignore specific app configurations
+app_state.json
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]

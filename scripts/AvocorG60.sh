@@ -16,6 +16,8 @@ defaults write com.t1visions.SerialScripts "Display 1" -dict-add GetBacklight "/
 
 defaults write com.t1visions.SerialScripts "Display 1" -dict-add GetPower "/usr/local/bin/python /Local/scripts/serial/AvocorG60.py $(ls /dev/tty.usbserial-$serial) GetPower";
 
+defaults write com.t1visions.SerialScripts "Display 1" -dict-add GetSignal "/usr/local/bin/python /Local/scripts/serial/AvocorG60.py $(ls /dev/tty.usbserial-$serial) GetSignalv2";
+
 defaults write com.t1visions.SerialScripts "Display 1" -dict-add GetFirmware "/usr/local/bin/python /Local/scripts/serial/AvocorG60.py $(ls /dev/tty.usbserial-$serial) GetFirmware";
 
 defaults write com.t1visions.SerialScripts "Display 1" -dict-add SetInput "/usr/local/bin/python /Local/scripts/serial/AvocorG60.py $(ls /dev/tty.usbserial-$serial) HDMI2";
