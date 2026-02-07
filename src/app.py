@@ -130,7 +130,7 @@ def build_app():
         RunCommandAction(command, success_message="UPDD minimum notify level set.").execute()
         command = ["/usr/local/bin/upddprocesses", "stop", "-c"]
         RunCommandAction(command, success_message="UPDD processes stopped.").execute()
-        crontab_label = "\n# Disable UPDD Commander so that touch events pass straight to TTMenu"
+        crontab_label = "# Disable UPDD Commander so that touch events pass straight to TTMenu"
         crontab_entry = "@reboot /bin/sleep 80; /usr/local/bin/upddprocesses stop -c"
         AddCrontabEntryAction(crontab_label).execute()
         AddCrontabEntryAction(crontab_entry).execute()

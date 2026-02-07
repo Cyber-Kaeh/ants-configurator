@@ -143,20 +143,43 @@ class AddCrontabEntryAction:
         self.entry = entry
 
     def execute(self):
-        """Adds an entry to the user's crontab if it doesn't already exist."""
+        """
+        Safely adds an entry to the user's crontab
+        """
         try:
-            # The command to safely add a crontab entry.
-            # It lists the current crontab, checks if the entry exists, and if not, appends it.
-            command = f'(crontab -l 2>/dev/null | grep -Fq -- "{self.entry}") || (crontab -l 2>/dev/null; echo "{self.entry}") | crontab -'
-            result = subprocess.run(command, shell=True, check=True, capture_output=True, text=True)
-            print(f"Ensured crontab entry exists: '{self.entry}'")
-            if result.stderr:
-                # crontab -l on an empty crontab outputs to stderr, which is normal.
-                # We can ignore it unless there's a real error.
-                if "no crontab for" not in result.stderr:
-                    print(f"Crontab command produced warnings: {result.stderr}")
+            # 1. Get current crontab content
+            try:
+                # check_output returns bytes, so we decode to string
+                current_crontab = subprocess.check_output(
+                    ['crontab', '-l'], stderr=subprocess.DEVNULL
+                ).decode('utf-8')
+            except subprocess.CalledProcessError:
+                # This happens if the crontab is empty (exit code 1 on some systems)
+                current_crontab = ""
+
+            # 2. Check if entry already exists (in Python, not grep)
+            # We strip() to ensure trailing newlines don't cause false negatives
+            if self.entry.strip() in current_crontab:
+                print(f"Crontab entry already exists: '{self.entry.strip()[:50]}...'")
+                return
+
+            # 3. Append the new entry
+            # Ensure we have a newline before the new entry if the file isn't empty
+            if current_crontab and not current_crontab.endswith('\n'):
+                current_crontab += '\n'
+            
+            new_crontab = current_crontab + self.entry + '\n'
+
+            # 4. Write the new content back to crontab
+            subprocess.run(
+                ['crontab', '-'],
+                input=new_crontab.encode('utf-8'),
+                check=True
+            )
+            print(f"Ensured crontab entry exists: '{self.entry.strip()[:50]}...'")
+
         except subprocess.CalledProcessError as e:
-            print(f"Error setting crontab entry: {e}\n{e.stderr}")
+            print(f"Error modifying crontab: {e}")
 
 class RunIntegralSerialAction:
     def __init__(self, serial, command):
