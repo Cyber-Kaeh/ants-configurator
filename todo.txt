@@ -1,3 +1,10 @@
+(BUG) Software VC doesn't account for multi displays properly. Sets single
+display defaults (screenUpdateOnAllChanges) even after selecting 2 screens.
+
+(UPDATE) Include these 2 defaults in with the LCD/LED walls defaults:
+ttdef thinkHubMediumLineDrawWidth 10
+ttdef thinkHubThickLineDrawWidth 20
+
 Create logic for setting integral crontabs.
 (testing)Add pfstop somewhere
 Get someone else to test UI/UX

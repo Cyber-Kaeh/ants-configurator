@@ -188,6 +188,7 @@ def build_app():
             coordinates.append(coord_string)
             current_x += dock_width
         state.dock_config.total_width = current_x
+        SaveStateAction(state).execute()
 
         WriteDefaultsAction("TTMenu", "thinkHubEnableDock", "1").execute()
         WriteDefaultsAction("TTMenu", "multiViewScreenLabels", state.dock_config.names, value_type="-array").execute()
@@ -233,7 +234,6 @@ def build_app():
             print(f"Setting 4K mirror for Serial ID: {serial}")
             RunIntegralSerialAction(serial, "setScalingNone").execute()
             RunIntegralSerialAction(serial, "reboot").execute()
-            # subprocess.run([os.path.join(SCRIPTS_DIR, "set_4k_mirror.sh"), serial])
 
     def reboot_integral():
         selected_key = select_integral()
@@ -286,6 +286,7 @@ def build_app():
                 firmware = version_match.group(1) if version_match else None
                 integrals[str(idx)] = {"serial": serial, "firmware": firmware}
                 print(f"Integral {idx}: serial={serial}, firmware={firmware}")
+                SaveStateAction(state).execute()
             else:
                 print(f"No Integral found for serial: {serial}")
         
@@ -308,7 +309,6 @@ def build_app():
         state.display_config.model = model
         SaveStateAction(state).execute()
         RunScriptAction(SCRIPTS_DIR, f"{model}.sh", serial).execute()
-        # RunScriptAction([sys.executable, os.path.join(LOCAL_SERIAL_DIR, f"{model}.py"), serial]).execute()
 
         displays_list = ["AvocorH20", "AvocorF50", "AvocorG60"]
         if model in displays_list:
@@ -485,6 +485,7 @@ def build_app():
         "4": ("Enable API Control", lambda: enable_api_server()),
         "5": ("Enable Multisite", lambda: nav.push(multisite_menu)),
         "6": ("Enable Kiosk Mode", lambda: WriteDefaultsAction("TTMenu", "KioskMode", "0").execute()),
+        "t": ("Toggle TTMenu", lambda: ToggleTTMenuAction().execute()),        
         "b": ("Back", nav.back),
         "qq": ("Quit", exit_app),
     })
@@ -509,8 +510,6 @@ def build_app():
 
     uppd_menu.commands.update({
         "1": ("Set Defaults", lambda: set_uppd_defaults()),
-        # "2": ("Avocor E Defaults", print("Setting Avocor E defaults...")),
-        # "3": ("Avocor F Defaults", print("Setting Avocor F defaults...")),
         "t": ("Toggle TTMenu", lambda: ToggleTTMenuAction().execute()),
         "h": ("Home", nav.home),
         "b": ("Back", nav.back),
@@ -543,7 +542,6 @@ def build_app():
         ])),
         "6": ("Custom Command", lambda: custom_integral_command()),
         "b": ("Back", nav.back),
-        "ss": ("Save Configurations", lambda: SaveStateAction(state).execute()),
         "qq": ("Quit", exit_app),
     })
 
