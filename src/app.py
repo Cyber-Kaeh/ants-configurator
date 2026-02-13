@@ -314,6 +314,7 @@ def build_app():
         if model in displays_list:
             print("Adding crontab for displayMegaScript.py")
             set_display_serial_crontab()
+        nav.back()
 
     def get_display_serial_id(choice):
         result = subprocess.run(['ls /dev/tty.usb*'], shell=True, capture_output=True, text=True)
@@ -334,6 +335,7 @@ def build_app():
                 state.display_config.serial = serial
                 print(f"Display Serial ID set to: {serial}")
                 SaveStateAction(state).execute()
+                nav.back()
             else:
                 print(f"No display found for serial: {serial}")
 
@@ -414,7 +416,7 @@ def build_app():
         nav.back()
 
     def enable_api_server():
-        RunCommandAction(["cp", "/Local/scripts/externalCommand/com.t1v.externalCommandTelnetServer3.plist", "/Library/LaunchAgents/"]).execute()
+        RunCommandAction(["cp", "/Local/scripts/externalCommand/com.t1v.externalCommandTelnetServer3.plist", "/Users/t1user/Library/LaunchAgents/"]).execute()
         RunCommandAction(["launchctl", "load", "/Library/LaunchAgents/com.t1v.externalCommandTelnetServer3.plist"]).execute()
 
     def enable_multisite_smb():

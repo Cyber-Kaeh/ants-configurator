@@ -43,8 +43,8 @@ while ! pgrep -f "BetterDisplay" > /dev/null; do
     fi
 done
 
-echo "App process found. Giving it 5 seconds to warm up..."
-sleep 5
+echo "App process found. Giving it 20 seconds to warm up..."
+sleep 20
 
 # 5. Run Configuration Commands
 echo "Applying configurations..."
