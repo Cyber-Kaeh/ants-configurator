@@ -413,7 +413,7 @@ def build_app():
         WriteDefaultsAction("TTMenu", "thinkHubEnableTouchBack", "1").execute()
 
     def set_max_browsers(count):
-        WriteDefaultsAction("TTMenu", "maxBrowsers", count).execute()
+        WriteDefaultsAction("TTMenu", "webViewMaxClients", count).execute()
         nav.back()
 
     def enable_api_server():
