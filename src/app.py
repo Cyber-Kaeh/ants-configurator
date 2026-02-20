@@ -293,7 +293,8 @@ def build_app():
         state.integral_config.integrals = integrals
         if not integrals:
             print("No serial USB found.")
-        SaveStateAction(state).execute()
+        # Was getting double saves. trying to fix
+        # SaveStateAction(state).execute()
 
     def set_display_serial_crontab():
         label_entry = "#Checks display(s) signal status"
@@ -395,8 +396,8 @@ def build_app():
             WriteDefaultsAction("TTMenu", "screenUpdateOnAllChanges", "1").execute()
             WriteDefaultsAction("TTMenu", "desktopMoveAllWindows", "1").execute()
         else:
-            WriteDefaultsAction("TTMenu", "screenUpdateOnAllChanges", "1").execute()
-            WriteDefaultsAction("TTMenu", "thinkHubDesktopThinkHubScreenIndex", "1").execute()
+            WriteDefaultsAction("TTMenu", "desktopMoveAllWindows", "1").execute()
+            WriteDefaultsAction("TTMenu", "thinkHubDesktopThinkHubScreenIndex", "0").execute()
             WriteDefaultsAction("TTMenu", "thinkHubDesktopScreenRect", multi_string, value_type="-string").execute()
 
         if choice == "zoom" or choice == "both":
