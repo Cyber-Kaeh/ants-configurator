@@ -9,11 +9,9 @@
     },
     "dock_config": {
         "names": [
-            "Dock1"
         ],
         "count": 1,
         "size": [
-            "1920x1080"
         ],
         "enabled": true
     },
