@@ -611,7 +611,7 @@ def build_app():
 
     resolution_menu.commands.update({
         "1": ("Set resolution to 3840x2160", lambda: set_screen_size("3840x2160")),
-        "2": ("Set resolution to 5120x2880", lambda: set_screen_size("5120x2880")),
+        "2": ("Set resolution to 5120x2160", lambda: set_screen_size("5120x2160")),
         "3": ("Set resolution to 1920x1080", lambda: set_screen_size("1920x1080")),
         "4": ("Set custom resolution", set_custom_res),
         "t": ("Toggle TTMenu", lambda: ToggleTTMenuAction().execute()),
