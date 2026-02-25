@@ -488,8 +488,8 @@ def build_app():
         "4": ("Enable API Control", lambda: enable_api_server()),
         "5": ("Enable Multisite", lambda: nav.push(multisite_menu)),
         # "6": ("Enable Kiosk Mode", lambda: WriteDefaultsAction("TTMenu", "KioskMode", "0").execute()),
-        "6": ("Enable Kiosk Mode", lambda: RunCommandAction("defaults", "delete", "com.t1visions.TTMenu", "DisableKiosk").execute()),
-        "t": ("Toggle TTMenu", lambda: ToggleTTMenuAction().execute()),        
+        "6": ("Enable Kiosk Mode", lambda: RunCommandAction(["defaults", "delete", "com.t1visions.TTMenu", "DisableKiosk"]).execute()),
+        "t": ("Toggle TTMenu", lambda: ToggleTTMenuAction().execute()),
         "b": ("Back", nav.back),
         "qq": ("Quit", exit_app),
     })

@@ -153,7 +153,7 @@ class DockConfig:
     def add_dock(self, name, size):
         self._names.append(name)
         self._size.append(size)
-        self._count += 1
+        self._count = len(self._names)
         self._enabled = True
 
     def to_dict(self):
