@@ -1,5 +1,6 @@
 (BUG) Software VC doesn't account for multi displays properly. Sets single
 display defaults (screenUpdateOnAllChanges) even after selecting 2 screens.
+(BUG) Integral configs aren't saving reliably
 
 (UPDATE) Include these 2 defaults in with the LCD/LED walls defaults:
 ttdef thinkHubMediumLineDrawWidth 10
