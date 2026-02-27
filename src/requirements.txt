@@ -1,0 +1,10 @@
+markdown-it-py==4.0.0
+mdurl==0.1.2
+packaging==26.0
+prompt_toolkit==3.0.52
+Pygments==2.19.2
+questionary==2.1.1
+rich==14.3.3
+setuptools==82.0.0
+wcwidth==0.6.0
+wheel==0.46.3
