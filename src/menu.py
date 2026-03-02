@@ -1,6 +1,7 @@
 import questionary
 from questionary import Choice
 from rich.console import Console
+from rich.panel import Panel
 
 console = Console()
 
@@ -17,7 +18,7 @@ class Menu:
             if callable(self.startup_art):
                 self.startup_art()
             else:
-                console.print(self.startup_art)
+                console.print(self.startup_art, style="bold rgb(255,168,0)")
             self._startup_shown = True
 
         while True:
@@ -27,7 +28,8 @@ class Menu:
             ]
 
             choice = questionary.select(
-                self.title,
+                # self.title,
+                "",
                 choices=choices,
             ).ask()
 
