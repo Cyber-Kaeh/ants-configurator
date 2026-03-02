@@ -3,11 +3,13 @@ import sys
 import subprocess
 import os
 import re
+import io
+import contextlib
 from prompt_toolkit.application import run_in_terminal
 from prompt_toolkit.key_binding import KeyBindings
 from ascii_art import ASCII_ART
 from models import DisplayConfig, DockConfig, IntegralConfig, VCConfig
-from actions import SaveStateAction, LoadStateAction, DeleteConfigAction, ToggleTTMenuAction, WriteDefaultsAction, RunIntegralSerialAction, RunScriptAction, RunCommandAction, AddCrontabEntryAction, ClearConfigAction
+from actions import SaveStateAction, LoadStateAction, DeleteConfigAction, ToggleTTMenuAction, WriteDefaultsAction, RunIntegralSerialAction, RunCommandAction, AddCrontabEntryAction, ClearConfigAction
 
 SCRIPTS_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../scripts"))
 LOCAL_SCRIPTS_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "/Local/scripts"))
@@ -16,7 +18,7 @@ T1VAPPS_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "/Users/t1
 
 
 def in_terminal(fn):
-    """Wraps an action function to run safely while the full-screen TUI is active."""
+    """Wraps a function that uses input() so it can safely pause the TUI."""
     def wrapper(*args, **kwargs):
         return run_in_terminal(lambda: fn(*args, **kwargs))
     return wrapper
@@ -33,7 +35,7 @@ class AppState:
 class MenuStack:
     def __init__(self):
         self.stack = []
-        self.app: MenuApp | None = None  # set to MenuApp after creation
+        self.app: MenuApp | None = None
 
     def push(self, menu):
         self.stack.append(menu)
@@ -58,6 +60,7 @@ class MenuStack:
 def exit_app():
     sys.exit(0)
 
+
 def build_app():
     state = AppState()
     nav = MenuStack()
@@ -65,6 +68,19 @@ def build_app():
         LoadStateAction(state).execute()
     except Exception as e:
         print(f"Error loading state: {e}")
+
+    def to_panel(fn):
+        """Captures all print() output from fn and sends it to the output panel."""
+        def wrapper(*args, **kwargs):
+            buf = io.StringIO()
+            with contextlib.redirect_stdout(buf):
+                result = fn(*args, **kwargs)
+            output = buf.getvalue()
+            if output and nav.app:
+                for line in output.splitlines():
+                    nav.app.add_output(line)
+            return result
+        return wrapper
 
     def calculate_frame():
         try:
@@ -82,7 +98,7 @@ def build_app():
         except Exception as e:
             print(f"Error calculating frame: {e}")
 
-    @in_terminal
+    @to_panel
     def set_frame():
         calculate_frame()
         if state.display_config.placement:
@@ -96,7 +112,7 @@ def build_app():
             if value is None:
                 return
             state.display_config.size = value
-            run_in_terminal(lambda: SaveStateAction(state).execute())
+            to_panel(lambda: SaveStateAction(state).execute())()
         if nav.app:
             nav.app.request_input("Enter custom resolution (e.g., 3840x2160):", _on_input)
 
@@ -115,22 +131,21 @@ def build_app():
                     WriteDefaultsAction("TTMenu", "thinkHubMediumLineDrawWidth", "10").execute()
                     WriteDefaultsAction("TTMenu", "thinkHubThickLineDrawWidth", "20").execute()
                     state.vc_config.multi_display = True
-            run_in_terminal(_writes)
+            to_panel(_writes)()
         if nav.app:
             nav.app.request_input("Enter number of displays:", _on_input)
 
-    @in_terminal
+    @to_panel
     def set_screen_size(option):
         state.display_config.size = option
         SaveStateAction(state).execute()
         print(f"Screen size set to {option}")
         nav.back()
 
-    @in_terminal
+    @to_panel
     def set_frameScaling(option, include_pan_gesture=False):
         if include_pan_gesture:
             WriteDefaultsAction("TTMenu", "panGestureFactor", "2").execute()
-
         WriteDefaultsAction("TTMenu", "frameScaling", option).execute()
         nav.back()
 
@@ -139,15 +154,15 @@ def build_app():
             def _on_input(value):
                 if value is None:
                     return
-                run_in_terminal(lambda: WriteDefaultsAction("TTMenu", "touchDisplayResolution", value).execute())
+                to_panel(lambda: WriteDefaultsAction("TTMenu", "touchDisplayResolution", value).execute())()
                 nav.back()
             if nav.app:
                 nav.app.request_input("Enter custom touchDisplayResolution value:", _on_input)
         else:
-            run_in_terminal(lambda: WriteDefaultsAction("TTMenu", "touchDisplayResolution", option).execute())
+            to_panel(lambda: WriteDefaultsAction("TTMenu", "touchDisplayResolution", option).execute())()
             nav.back()
 
-    @in_terminal
+    @to_panel
     def set_uppd_defaults():
         WriteDefaultsAction("TTMenu", "MTManagerSearchPriority", "UPDD").execute()
         WriteDefaultsAction("TTMenu", "thinkHubEnableRemoteKeyboardAction", "1").execute()
@@ -165,7 +180,6 @@ def build_app():
             val = input(prompt_text)
             if val.lower() == 'done' or val in common_list:
                 return val
-
             confirm = input(f"Warning: '{val}' is not a common name. Continue anyway? (y/N): ")
             if confirm.lower() in ['y', 'yes']:
                 return val
@@ -174,14 +188,12 @@ def build_app():
     @in_terminal
     def configure_docks():
         common_names = ["Dock1", "Dock2", "Dock3", "Dock4", "Dock", "MTR"]
-        common_res = ["1280x720","1920x1080", "3840x2160"]
+        common_res = ["1280x720", "1920x1080", "3840x2160"]
         while True:
             dock_name = get_confirmed_input(
                 "Enter dock name (or 'done' if finished): ", common_names)
-
             if dock_name.lower() == 'done':
                 break
-
             while True:
                 res = input("Enter resolution (e.g., 1920x1080): ")
                 if res.lower() == 'done':
@@ -189,26 +201,22 @@ def build_app():
                 if not re.match(r"^\d+x\d+$", res):
                     print(f"Invalid format: '{res}'. Use widthxheight (e.g., 1920x1080). Please try again.")
                     continue
-                if not res in common_res:
+                if res not in common_res:
                     confirm = input(f"Warning: {res} is not a common resolution. Continue anyway? (y/N): ")
                     if confirm.lower() not in ['y', 'yes']:
                         continue
-
                 state.dock_config.add_dock(dock_name, res)
                 print(f"Added {dock_name} with resolution: {res}")
                 break
-
         SaveStateAction(state).execute()
 
-    @in_terminal
+    @to_panel
     def initialize_dock():
         if state.display_config.placement is None or not state.dock_config.names:
             print("Screen placement and/or dock names not set.")
             return
-
         coordinates = []
         current_x = state.display_config.placement
-
         for i in range(state.dock_config.count):
             dock_width, dock_height = map(int, state.dock_config.size[i].split('x'))
             coord_string = f"'{{{{{current_x}, 0}}, {{{dock_width}, {dock_height}}}}}'"
@@ -216,7 +224,6 @@ def build_app():
             current_x += dock_width
         state.dock_config.total_width = current_x
         SaveStateAction(state).execute()
-
         WriteDefaultsAction("TTMenu", "thinkHubEnableDock", "1").execute()
         WriteDefaultsAction("TTMenu", "multiViewScreenLabels", state.dock_config.names, value_type="-array").execute()
         WriteDefaultsAction("TTMenu", "multiViewScreenCoordinates", coordinates, value_type="-array").execute()
@@ -233,7 +240,7 @@ def build_app():
             print(f"Only one Integral found: Serial ID: {state.integral_config.integrals[key]['serial']}")
             return key
         else:
-            print("Multiple Integrals detected. Please select which one to reboot:")
+            print("Multiple Integrals detected. Please select which one to use:")
             for key, integral in state.integral_config.integrals.items():
                 print(f"{key}) Serial: {integral['serial']}, Firmware: {integral['firmware']}")
             choice = input("Enter the number of the Integral: ")
@@ -245,7 +252,7 @@ def build_app():
     @in_terminal
     def custom_integral_command():
         selected_key = select_integral()
-        print("Enter commad to run, or [help] for list of commands")
+        print("Enter command to run, or [help] for list of commands")
         choice = input("> ")
         if selected_key:
             serial = state.integral_config.integrals[selected_key]['serial']
@@ -292,24 +299,18 @@ def build_app():
                 print(f"Error: Interrogate failed with return code {result.returncode}")
                 print("Error Output:")
                 print(result.stderr)
-            return
 
-    @in_terminal
+    @to_panel
     def get_integral_serial_id():
         result = subprocess.run(['ls /dev/tty.usb*'], shell=True, capture_output=True, text=True)
-        output = result.stdout
-
-        # Find all matches
-        matches = re.findall(r'/dev/tty\.usbserial-([A-Za-z0-9]+)', output)
-        print("Serial Matches: ",matches)
-
+        matches = re.findall(r'/dev/tty\.usbserial-([A-Za-z0-9]+)', result.stdout)
+        print("Serial Matches:", matches)
         integrals = {}
         for idx, serial in enumerate(matches, 1):
             script_path = os.path.join(SCRIPTS_DIR, "integralSerial.py")
             serial_result = subprocess.run(
                 [sys.executable, script_path, f"/dev/tty.usbserial-{serial}", "getVersion"],
                 capture_output=True, text=True)
-            # read output of getVersion command and search for "HdFury"
             get_version_output = serial_result.stdout
             if "HdFury" in get_version_output:
                 version_match = re.search(r"ver FW: ([\d.]+)", get_version_output)
@@ -319,19 +320,18 @@ def build_app():
                 SaveStateAction(state).execute()
             else:
                 print(f"No Integral found for serial: {serial}")
-
         state.integral_config.integrals = integrals
         if not integrals:
             print("No serial USB found.")
 
-    @in_terminal
+    @to_panel
     def set_display_serial_crontab():
         label_entry = "#Checks display(s) signal status"
         crontab_entry = "@reboot /bin/sleep 200; /usr/local/bin/python /Local/scripts/DisplayMegaScript.py --fix --notify --reboot"
         AddCrontabEntryAction(label_entry).execute()
         AddCrontabEntryAction(crontab_entry).execute()
 
-    @in_terminal
+    @to_panel
     def set_display_serial_defaults(model):
         if not state.display_config.serial:
             print("No display serial found, run 1) Find USB Serial #.")
@@ -339,31 +339,33 @@ def build_app():
         serial = state.display_config.serial
         state.display_config.model = model
         SaveStateAction(state).execute()
-        RunScriptAction(SCRIPTS_DIR, f"{model}.sh", serial).execute()
-
+        script_path = os.path.join(SCRIPTS_DIR, f"{model}.sh")
+        print(f"Running script: {script_path} {serial}")
+        result = subprocess.run([script_path, serial], capture_output=True, text=True)
+        if result.stdout:
+            print(result.stdout)
+        if result.stderr:
+            print(result.stderr)
         displays_list = ["AvocorH20", "AvocorF50", "AvocorG60"]
         if model in displays_list:
             print("Adding crontab for displayMegaScript.py")
             set_display_serial_crontab()
         nav.back()
 
-    @in_terminal
+    @to_panel
     def get_display_serial_id(choice):
         result = subprocess.run(['ls /dev/tty.usb*'], shell=True, capture_output=True, text=True)
-        output = result.stdout
-        matches = re.findall(r'/dev/tty\.usbserial-([A-Za-z0-9]+)', output)
+        matches = re.findall(r'/dev/tty\.usbserial-([A-Za-z0-9]+)', result.stdout)
         if not matches:
             print(f"No matching serial found for {choice}")
             return
-
         for serial in matches:
             script_path = os.path.join(LOCAL_SERIAL_DIR, f"{choice}.py")
             serial_result = subprocess.run(
                 [sys.executable, script_path, f"/dev/tty.usbserial-{serial}", "GetPower"],
                 capture_output=True, text=True
             )
-            get_power_output = serial_result.stdout
-            if "Display is ON" in get_power_output:
+            if "Display is ON" in serial_result.stdout:
                 state.display_config.serial = serial
                 print(f"Display Serial ID set to: {serial}")
                 SaveStateAction(state).execute()
@@ -374,33 +376,26 @@ def build_app():
     @in_terminal
     def run_betterdisplays_sh():
         print("\nIf you want to add a license for BetterDisplays,\n"
-            "please copy the command from library page and run\n"
-            "it in terminal.\n\n" \
-            "https://sites.google.com/a/t1v.com/process-docs/technical-knowledge-database/virtual-fitheadless-better-display-setup\n")
+              "please copy the command from library page and run\n"
+              "it in terminal.\n\n"
+              "https://sites.google.com/a/t1v.com/process-docs/technical-knowledge-database/virtual-fitheadless-better-display-setup\n")
         continue_resp = input("Type:\n"
                               "[Q]uit to stop and enter license\n"
                               "[B]ack to return to previous menu\n"
                               "Any other key to continue...\n> ")
-        if continue_resp.lower() == "q" or continue_resp.lower() == "quit":
+        if continue_resp.lower() in ("q", "quit"):
             exit_app()
-        elif continue_resp.lower() == "b" or continue_resp.lower() == "back":
+        elif continue_resp.lower() in ("b", "back"):
             return
-
         resp = input("Is TTMenu toggled down? (y/N): ")
-        if resp.lower() in ["n", "no"]:
+        if resp.lower() in ("n", "no"):
             ToggleTTMenuAction().execute()
-
         print("Beginning BetterDisplays setup, this may take a few moments...")
-        placement = state.display_config.placement
-        screens = state.display_config.count
-
-        # Ensure placement and screens are strings for subprocess
         script_path = os.path.join(SCRIPTS_DIR, "better_displays.sh")
         result = subprocess.run(
-            [script_path, str(placement), str(screens)],
+            [script_path, str(state.display_config.placement), str(state.display_config.count)],
             capture_output=True, text=True
         )
-
         if result.returncode == 0:
             print("BetterDisplays setup completed successfully.")
             print(result.stdout)
@@ -411,20 +406,17 @@ def build_app():
     @in_terminal
     def initialize_software_vc(choice):
         if state.display_config.placement is None or state.display_config.height is None:
-            print("Error: Screen placement not set.\n" \
-            "Please set screen in Display menu first.")
+            print("Error: Screen placement not set.\nPlease set screen in Display menu first.")
             return
         if not state.dock_config.enabled:
             resp = input("Docks should be set up before VC. Continue anyway? (y/N): ")
-            if resp.lower() not in ["y", "yes"]:
+            if resp.lower() not in ("y", "yes"):
                 return
-
         display_width = state.display_config.placement
         height = state.display_config.height - 720
         dock_width = state.dock_config.total_width
         placement = display_width + dock_width
         multi_string = f"{{{{{placement}, {height}}}}}, {{{{1280, 720}}}}"
-
         if state.display_config.count == 1:
             WriteDefaultsAction("TTMenu", "screenUpdateOnAllChanges", "1").execute()
             WriteDefaultsAction("TTMenu", "desktopMoveAllWindows", "1").execute()
@@ -432,26 +424,25 @@ def build_app():
             WriteDefaultsAction("TTMenu", "desktopMoveAllWindows", "1").execute()
             WriteDefaultsAction("TTMenu", "thinkHubDesktopThinkHubScreenIndex", "0").execute()
             WriteDefaultsAction("TTMenu", "thinkHubDesktopScreenRect", multi_string, value_type="-string").execute()
-
-        if choice == "zoom" or choice == "both":
+        if choice in ("zoom", "both"):
             WriteDefaultsAction("TTMenu", "ThinkHubZoom", "1").execute()
-        if choice == "teams" or choice == "both":
+        if choice in ("teams", "both"):
             WriteDefaultsAction("TTMenu", "ThinkHubTeams", "1").execute()
             WriteDefaultsAction("automate", "VCCaptureRect", f"{placement},0,1280,720", value_type="-string").execute()
         SaveStateAction(state).execute()
 
-    @in_terminal
+    @to_panel
     def set_magewell_defaults():
         WriteDefaultsAction("TTMenu", "deviceSettings", "/Users/t1user/Documents/deviceSettings.plist").execute()
         WriteDefaultsAction("TTMenu", "captureSessionDefaultAudioVolume", "0.75").execute()
         WriteDefaultsAction("TTMenu", "thinkHubEnableTouchBack", "1").execute()
 
-    @in_terminal
+    @to_panel
     def set_max_browsers(count):
         WriteDefaultsAction("TTMenu", "webViewMaxClients", count).execute()
         nav.back()
 
-    @in_terminal
+    @to_panel
     def enable_api_server():
         RunCommandAction(["cp", "/Local/scripts/externalCommand/com.t1v.externalCommandTelnetServer3.plist", "/Users/t1user/Library/LaunchAgents/"]).execute()
         RunCommandAction(["launchctl", "load", "/Library/LaunchAgents/com.t1v.externalCommandTelnetServer3.plist"]).execute()
@@ -463,14 +454,14 @@ def build_app():
             def _writes():
                 WriteDefaultsAction("TTMenu", "thinkHubMultiSite", "1").execute()
                 WriteDefaultsAction("TTMenu", "thinkHubMultiSiteRoom", value).execute()
-            run_in_terminal(_writes)
+            to_panel(_writes)()
         if nav.app:
             nav.app.request_input("Enter customer name for Multisite Room:", _on_input)
 
     def enable_multisite_enterprise():
-        run_in_terminal(lambda: WriteDefaultsAction("TTMenu", "thinkHubMultiSite", "1").execute())
+        to_panel(lambda: WriteDefaultsAction("TTMenu", "thinkHubMultiSite", "1").execute())()
         def _on_confirm(response):
-            if response is None or response.lower() not in ["y", "yes"]:
+            if response is None or response.lower() not in ("y", "yes"):
                 return
             def _on_ip(ip):
                 if ip is None:
@@ -478,7 +469,7 @@ def build_app():
                 def _writes():
                     WriteDefaultsAction("TTMenu", "netMessengerHostName", ip).execute()
                     WriteDefaultsAction("TTMenu", "janusAddress", f"ws://{ip}:8188").execute()
-                run_in_terminal(_writes)
+                to_panel(_writes)()
             if nav.app:
                 nav.app.request_input("Enter the IP address for the Multisite Relay:", _on_ip)
         if nav.app:
@@ -505,17 +496,16 @@ def build_app():
     multisite_menu = Menu("Multisite Menu", {})
     clear_config_menu = Menu("Clear Configurations", {})
 
-    # Define menu commands in dictionaries
     multisite_menu.commands.update({
         "1": ("Enable Multisite Enterprise", lambda: enable_multisite_enterprise()),
         "2": ("Enable Multisite SMB", lambda: enable_multisite_smb()),
     })
 
     clear_config_menu.commands.update({
-        "1": ("Clear Display Config", in_terminal(lambda: ClearConfigAction(state, "display").execute())),
-        "2": ("Clear Dock Config", in_terminal(lambda: ClearConfigAction(state, "dock").execute())),
-        "3": ("Clear Integral Config", in_terminal(lambda: ClearConfigAction(state, "integral").execute())),
-        "4": ("Clear Software VC Config", in_terminal(lambda: ClearConfigAction(state, "vc").execute())),
+        "1": ("Clear Display Config", to_panel(lambda: ClearConfigAction(state, "display").execute())),
+        "2": ("Clear Dock Config", to_panel(lambda: ClearConfigAction(state, "dock").execute())),
+        "3": ("Clear Integral Config", to_panel(lambda: ClearConfigAction(state, "integral").execute())),
+        "4": ("Clear Software VC Config", to_panel(lambda: ClearConfigAction(state, "vc").execute())),
     })
 
     max_browsers_menu.commands.update({
@@ -527,10 +517,12 @@ def build_app():
     other_defaults_menu.commands.update({
         "1": ("Magewell Defaults", lambda: set_magewell_defaults()),
         "2": ("Set Max Browsers", lambda: nav.push(max_browsers_menu)),
-        "3": ("Set External Headphones", lambda: RunScriptAction(LOCAL_SCRIPTS_DIR, "AudioSwitcher", "-s", "External Headphones").execute()),
+        "3": ("Set External Headphones", to_panel(lambda: RunCommandAction(
+            [os.path.join(LOCAL_SCRIPTS_DIR, "AudioSwitcher"), "-s", "External Headphones"]).execute())),
         "4": ("Enable API Control", lambda: enable_api_server()),
         "5": ("Enable Multisite", lambda: nav.push(multisite_menu)),
-        "6": ("Enable Kiosk Mode", lambda: RunCommandAction(["defaults", "delete", "com.t1visions.TTMenu", "DisableKiosk"]).execute()),
+        "6": ("Enable Kiosk Mode", to_panel(lambda: RunCommandAction(
+            ["defaults", "delete", "com.t1visions.TTMenu", "DisableKiosk"]).execute())),
     })
 
     dock_menu.commands.update({
@@ -550,7 +542,8 @@ def build_app():
     })
 
     pq_menu.commands.update({
-        "1": ("Set Defaults", in_terminal(lambda: subprocess.run([os.path.join(SCRIPTS_DIR, "tester.sh")]))),
+        "1": ("Set Defaults", to_panel(lambda: RunCommandAction(
+            [os.path.join(SCRIPTS_DIR, "tester.sh")]).execute())),
     })
 
     touch_menu.commands.update({
@@ -563,10 +556,11 @@ def build_app():
         "2": ("Interrogate Integral", lambda: interrogate_integral()),
         "3": ("Reboot Integral", lambda: reboot_integral()),
         "4": ("Set 4K Mirror", lambda: set_4k_mirror()),
-        "5": ("Example crontabs", in_terminal(lambda: subprocess.run([
+        "5": ("Example crontabs", to_panel(lambda: RunCommandAction([
             os.path.join(SCRIPTS_DIR, "integral_crontabs.sh"),
-            state.integral_config.integrals[next(iter(state.integral_config.integrals))]['serial'] if state.integral_config.integrals else 'XXXXXXXX'
-        ]))),
+            state.integral_config.integrals[next(iter(state.integral_config.integrals))]['serial']
+            if state.integral_config.integrals else 'XXXXXXXX'
+        ]).execute())),
         "6": ("Custom Command", lambda: custom_integral_command()),
     })
 
@@ -574,7 +568,8 @@ def build_app():
         "1": ("Find USB Serial #", lambda: nav.push(find_display_serial_menu)),
         "2": ("Set Defaults", lambda: nav.push(display_serial_defaults_menu)),
         "3": ("Set crontab", lambda: set_display_serial_crontab()),
-        "4": ("Test Power On", in_terminal(lambda: subprocess.run([os.path.join(SCRIPTS_DIR, "tester.sh")]))),
+        "4": ("Test Power On", to_panel(lambda: RunCommandAction(
+            [os.path.join(SCRIPTS_DIR, "tester.sh")]).execute())),
     })
 
     find_display_serial_menu.commands.update({
@@ -627,7 +622,8 @@ def build_app():
     display_config_menu.commands.update({
         "1": ("Set screen count", set_screen_count),
         "2": ("Set screen size", lambda: nav.push(resolution_menu)),
-        "3": ("Show current", in_terminal(lambda: print(f"Screen Count: {state.display_config.count}, Screen Size: {state.display_config.size}"))),
+        "3": ("Show current", to_panel(lambda: print(
+            f"Screen Count: {state.display_config.count}, Screen Size: {state.display_config.size}"))),
         "4": ("Set frame", set_frame),
         "5": ("Set touchDisplayResolution", lambda: nav.push(touchDisplay_menu)),
         "6": ("Set frameScaling", lambda: nav.push(frameScaling_menu)),
@@ -636,8 +632,10 @@ def build_app():
     displays_menu.commands.update({
         "1": ("Displays Configuration", lambda: nav.push(display_config_menu)),
         "2": ("Serial Commands Menu", lambda: nav.push(display_serial_menu)),
-        "3": ("SPDisplays", in_terminal(lambda: RunCommandAction(["/usr/sbin/system_profiler", "SPDisplaysDataType"]).execute())),
-        "4": ("Run screensave", in_terminal(lambda: RunCommandAction([os.path.join(T1VAPPS_DIR, "screenArrange/screenArrange"), "save"]).execute())),
+        "3": ("SPDisplays", to_panel(lambda: RunCommandAction(
+            ["/usr/sbin/system_profiler", "SPDisplaysDataType"]).execute())),
+        "4": ("Run screensave", to_panel(lambda: RunCommandAction(
+            [os.path.join(T1VAPPS_DIR, "screenArrange/screenArrange"), "save"]).execute())),
     })
 
     main_menu.commands.update({
@@ -647,11 +645,13 @@ def build_app():
         "4": ("Touch Menu", lambda: nav.push(touch_menu)),
         "5": ("Software VC Menu", lambda: nav.push(software_vc_menu)),
         "6": ("Other Defaults", lambda: nav.push(other_defaults_menu)),
-        "pf": ("Disable Firewall", in_terminal(lambda: subprocess.run(["sudo", "/sbin/pfctl", "-d"]))),
-        "b4": ("Load Last Configs", in_terminal(lambda: LoadStateAction(state).execute())),
-        "vs": ("View Current Configurations", in_terminal(lambda: subprocess.run(["cat", "app_state.json"]))),
+        "pf": ("Disable Firewall", to_panel(lambda: RunCommandAction(
+            ["sudo", "/sbin/pfctl", "-d"], success_message="Firewall disabled.").execute())),
+        #"b4": ("Load Last Configs", to_panel(lambda: LoadStateAction(state).execute())),
+        #"vs": ("View Current Configurations", to_panel(lambda: RunCommandAction(
+        #    ["cat", "app_state.json"]).execute())),
         "cc": ("Clear Configurations", lambda: nav.push(clear_config_menu)),
-        "dd": ("Delete Configurations", in_terminal(lambda: DeleteConfigAction().execute())),
+        #"dd": ("Delete Configurations", to_panel(lambda: DeleteConfigAction().execute())),
     })
 
     # Build global key bindings
@@ -671,7 +671,7 @@ def build_app():
 
     @kb.add('t')
     def _toggle(_event):
-        run_in_terminal(lambda: ToggleTTMenuAction().execute())
+        to_panel(lambda: ToggleTTMenuAction().execute())()
 
     app = MenuApp(extra_bindings=kb)
     nav.app = app

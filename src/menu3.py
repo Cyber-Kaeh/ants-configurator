@@ -1,13 +1,13 @@
 from prompt_toolkit import Application
+from prompt_toolkit.document import Document
 from prompt_toolkit.formatted_text import FormattedText, HTML
 from prompt_toolkit.key_binding import KeyBindings, merge_key_bindings
 from prompt_toolkit.layout import Layout, HSplit, VSplit, Window, ConditionalContainer
 from prompt_toolkit.layout.controls import FormattedTextControl
-from prompt_toolkit.filters import Condition
+from prompt_toolkit.filters import Condition, has_focus
 from prompt_toolkit.styles import Style
 from prompt_toolkit.widgets import TextArea, Frame
 
-PANEL_WIDTH = 45
 
 STYLE = Style.from_dict({
     "art":                "fg:#ffaa00 bold",
@@ -48,24 +48,40 @@ class MenuApp:
             focusable=True,
         )
 
+        # Output panel — BufferControl-backed so scrollbar, mouse-wheel,
+        # and text selection all work natively.
+        self._output_area = TextArea(
+            text="",
+            read_only=True,
+            scrollbar=True,
+            wrap_lines=True,
+            focusable=True,
+            style="class:output-line",
+        )
+
         kb = KeyBindings()
         not_in_input = ~Condition(lambda: self._input_active)
-        in_input = Condition(lambda: self._input_active)
+        in_input     =  Condition(lambda: self._input_active)
+        has_output   =  Condition(lambda: bool(self._output_lines))
+        in_output    = has_focus(self._output_area)
         panel_active = Condition(lambda: self._input_active or bool(self._output_lines))
 
-        @kb.add("up", filter=not_in_input)
+        # Menu navigation only fires when neither input nor output panel is focused.
+        menu_active = not_in_input & ~in_output
+
+        @kb.add("up", filter=menu_active)
         def _up(_event):
             if self._current_menu:
                 n = len(self._current_menu.commands)
                 self._selected_index = (self._selected_index - 1) % n
 
-        @kb.add("down", filter=not_in_input)
+        @kb.add("down", filter=menu_active)
         def _down(_event):
             if self._current_menu:
                 n = len(self._current_menu.commands)
                 self._selected_index = (self._selected_index + 1) % n
 
-        @kb.add("enter", filter=not_in_input)
+        @kb.add("enter", filter=menu_active)
         def _enter(_event):
             if not self._current_menu:
                 return
@@ -74,6 +90,7 @@ class MenuApp:
                 return
             _, action = self._current_menu.commands[keys[self._selected_index]]
             self._output_lines.clear()
+            self._output_area.buffer.set_document(Document(""), bypass_readonly=True)
             action()
 
         @kb.add("enter", filter=in_input)
@@ -92,6 +109,20 @@ class MenuApp:
             self._text_area.text = ""
             self._input_active = False
             self._input_callback = None
+            self._app.layout.focus(self._menu_window)
+
+        # Tab shifts focus to the output panel for scrolling / text selection,
+        # Tab again (or Escape) returns focus to the menu.
+        @kb.add("tab", filter=not_in_input)
+        def _tab(_event):
+            if self._output_lines:
+                if in_output():
+                    self._app.layout.focus(self._menu_window)
+                else:
+                    self._app.layout.focus(self._output_area)
+
+        @kb.add("escape", filter=in_output)
+        def _output_escape(_event):
             self._app.layout.focus(self._menu_window)
 
         all_bindings = (
@@ -118,6 +149,7 @@ class MenuApp:
                         from prompt_toolkit.mouse_events import MouseEventType
                         if mouse_event.event_type == MouseEventType.MOUSE_UP:
                             self._selected_index = idx
+                            self._app.layout.focus(self._menu_window)
                             act()
                     return handler
 
@@ -126,27 +158,23 @@ class MenuApp:
                 tokens.append((style, f"{prefix}{key}) {label}\n", make_click_handler(i, action)))
             return FormattedText(tokens)
 
-        def get_output():
-            if not self._output_lines:
-                return FormattedText([("class:output-empty", "\n  No output yet.")])
-            tokens = []
-            for line in self._output_lines[-20:]:
-                tokens.append(("class:output-line", f"  {line}\n"))
-            return FormattedText(tokens)
-
         def get_toolbar():
             return HTML(
-                "  <title>↑↓</title> navigate  <title>Enter</title> select  | "
-                "<b><skyblue>b</b></skyblue> back  <title>h</title> home  "
+                "  <title>↑↓</title> navigate  <title>Enter</title> select  "
+                "<title>b</title> back  <title>h</title> home  "
                 "<title>t</title> toggle  <title>qq</title> quit  "
-                "<title>Esc</title> Exit Input Mode"
+                "<title>Tab</title> scroll output  <title>Esc</title> exit input/output"
             )
 
+        # dont_extend_width=True: Window reports its natural content width (longest
+        # menu-item line) as a fixed int to VSplit, so the right panel gets the rest.
         self._menu_window = Window(
             FormattedTextControl(get_menu, focusable=True, show_cursor=False),
+            dont_extend_width=True,
         )
 
         right_content = HSplit([
+            # Input mode
             ConditionalContainer(
                 HSplit([
                     Window(
@@ -159,25 +187,37 @@ class MenuApp:
                 ]),
                 filter=in_input,
             ),
+            # Output placeholder (no lines yet)
             ConditionalContainer(
-                Window(FormattedTextControl(get_output)),
-                filter=not_in_input,
+                Window(
+                    FormattedTextControl(
+                        lambda: FormattedText([("class:output-empty", "\n  No output yet.")])
+                    ),
+                ),
+                filter=not_in_input & ~has_output,
+            ),
+            # Output panel (BufferControl: scrollbar + text selection work)
+            ConditionalContainer(
+                self._output_area,
+                filter=not_in_input & has_output,
             ),
         ])
 
         # Right panel: framed (with blue border) when active, blank spacer when idle.
         # Both options are the same width so the menu never reflows.
+        # Right panel fills all space not consumed by the menu column.
+        # Removing fixed widths lets both containers return None (expanding)
+        # so the outer VSplit gives everything left-over to this side.
         right_panel = VSplit([
             ConditionalContainer(
                 Frame(
                     right_content,
                     title=lambda: "  Input  " if self._input_active else "  Output  ",
-                    width=PANEL_WIDTH,
                 ),
                 filter=panel_active,
             ),
             ConditionalContainer(
-                Window(width=PANEL_WIDTH),
+                Window(),
                 filter=~panel_active,
             ),
         ])
@@ -214,8 +254,13 @@ class MenuApp:
         self._app.invalidate()
 
     def add_output(self, message: str):
-        """Append a status message to the output panel."""
+        """Append a line to the output panel and auto-scroll to the bottom."""
         self._output_lines.append(message)
+        text = "\n".join(f"  {line}" for line in self._output_lines)
+        self._output_area.buffer.set_document(
+            Document(text, cursor_position=len(text)),
+            bypass_readonly=True,
+        )
         self._app.invalidate()
 
     @property
