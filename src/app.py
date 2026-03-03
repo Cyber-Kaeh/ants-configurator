@@ -149,6 +149,7 @@ def build_app():
         WriteDefaultsAction("TTMenu", "frameScaling", option).execute()
         nav.back()
 
+    @to_panel
     def set_touch_display_resolution(option):
         if option == "custom":
             def _on_input(value):
@@ -321,7 +322,7 @@ def build_app():
         print("Serial Matches:", matches)
         integrals = {}
         for idx, serial in enumerate(matches, 1):
-            script_path = os.path.join(SCRIPTS_DIR, "integralSerial.py")
+            script_path = os.path.join(LOCAL_SERIAL_DIR, "integralSerial.py")
             serial_result = subprocess.run(
                 [sys.executable, script_path, f"/dev/tty.usbserial-{serial}", "getVersion"],
                 capture_output=True, text=True)
@@ -353,7 +354,7 @@ def build_app():
         serial = state.display_config.serial
         state.display_config.model = model
         SaveStateAction(state).execute()
-        module = importlib.import_module(f"src.scripts.{model}")
+        module = importlib.import_module(f"scripts.{model}")
         module.configure(serial)
         displays_list = ["AvocorH20", "AvocorF50", "AvocorG60"]
         if model in displays_list:
