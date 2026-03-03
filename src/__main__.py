@@ -1,4 +1,4 @@
-from app import build_app
+from src.app import build_app
 
 def main():
     app, nav, main_menu = build_app()

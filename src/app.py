@@ -1,27 +1,23 @@
-from menu3 import Menu, MenuApp
+from src.menu3 import Menu, MenuApp
 import sys
 import subprocess
 import os
 import re
 import io
 import contextlib
-from prompt_toolkit.application import run_in_terminal
+import importlib
 from prompt_toolkit.key_binding import KeyBindings
-from ascii_art import ASCII_ART
-from models import DisplayConfig, DockConfig, IntegralConfig, VCConfig
-from actions import SaveStateAction, LoadStateAction, DeleteConfigAction, ToggleTTMenuAction, WriteDefaultsAction, RunIntegralSerialAction, RunCommandAction, AddCrontabEntryAction, ClearConfigAction
+from prompt_toolkit import prompt
+from prompt_toolkit.completion import WordCompleter
+from src.ascii_art import ASCII_ART
+from src.models import DisplayConfig, DockConfig, IntegralConfig, VCConfig
+from src.actions import SaveStateAction, LoadStateAction, DeleteConfigAction, ToggleTTMenuAction, WriteDefaultsAction, RunIntegralSerialAction, RunCommandAction, AddCrontabEntryAction, ClearConfigAction
 
-SCRIPTS_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../scripts"))
+SCRIPTS_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "/scripts"))
 LOCAL_SCRIPTS_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "/Local/scripts"))
 LOCAL_SERIAL_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "/Local/scripts/serial"))
 T1VAPPS_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "/Users/t1user/T1VApps"))
 
-
-def in_terminal(fn):
-    """Wraps a function that uses input() so it can safely pause the TUI."""
-    def wrapper(*args, **kwargs):
-        return run_in_terminal(lambda: fn(*args, **kwargs))
-    return wrapper
 
 
 class AppState:
@@ -87,14 +83,14 @@ def build_app():
             res = state.display_config.size
             count = state.display_config.count
             if res is None or count is None:
-                print("Screen size or count not set.")
+                nav.app.set_message("Screen size or count not set.")
                 return
             width, height = map(int, res.split('x'))
             total_width = width * count
             state.display_config.height = height
             state.display_config.placement = total_width
             SaveStateAction(state).execute()
-            print(f"Calculated frame size: {total_width}x{height}")
+            nav.app.set_message(f"Calculated frame size: {total_width}x{height}")
         except Exception as e:
             print(f"Error calculating frame: {e}")
 
@@ -107,15 +103,18 @@ def build_app():
             WriteDefaultsAction("MultiTouchCalibrate", "frame", frame_string, value_type="-string").execute()
             SaveStateAction(state).execute()
 
+    @to_panel
     def set_custom_res():
+        res_completer = WordCompleter(["1280x720", "1920x1080", "3840x2160", "5120x2160"], ignore_case=True)
         def _on_input(value):
             if value is None:
                 return
             state.display_config.size = value
             to_panel(lambda: SaveStateAction(state).execute())()
         if nav.app:
-            nav.app.request_input("Enter custom resolution (e.g., 3840x2160):", _on_input)
+            nav.app.request_input("Enter custom resolution (e.g., 3840x2160):", _on_input, completer=res_completer)
 
+    @to_panel
     def set_screen_count():
         def _on_input(value):
             if value is None:
@@ -126,6 +125,7 @@ def build_app():
                 return
             state.display_config.count = count
             def _writes():
+                print(f"Screen count set to {count}")
                 SaveStateAction(state).execute()
                 if count > 1:
                     WriteDefaultsAction("TTMenu", "thinkHubMediumLineDrawWidth", "10").execute()
@@ -175,45 +175,59 @@ def build_app():
         AddCrontabEntryAction(crontab_label).execute()
         AddCrontabEntryAction(crontab_entry).execute()
 
-    def get_confirmed_input(prompt_text, common_list):
-        while True:
-            val = input(prompt_text)
-            if val.lower() == 'done' or val in common_list:
-                return val
-            confirm = input(f"Warning: '{val}' is not a common name. Continue anyway? (y/N): ")
-            if confirm.lower() in ['y', 'yes']:
-                return val
-            print("Entry cancelled. Try again.")
-
-    @in_terminal
     def configure_docks():
         common_names = ["Dock1", "Dock2", "Dock3", "Dock4", "Dock", "MTR"]
         common_res = ["1280x720", "1920x1080", "3840x2160"]
-        while True:
-            dock_name = get_confirmed_input(
-                "Enter dock name (or 'done' if finished): ", common_names)
-            if dock_name.lower() == 'done':
-                break
-            while True:
-                res = input("Enter resolution (e.g., 1920x1080): ")
-                if res.lower() == 'done':
-                    break
+        dock_completer = WordCompleter(common_names, ignore_case=True)
+        dock_res_completer = WordCompleter(common_res, ignore_case=True)
+
+        def ask_dock_name():
+            def _on_dock(dock_name):
+                if dock_name is None or dock_name.lower() == 'done':
+                    to_panel(lambda: SaveStateAction(state).execute())()
+                    return
+                if dock_name not in common_names:
+                    def _on_confirm(resp):
+                        if resp is None or resp.lower() not in ('y', 'yes'):
+                            nav.app.add_output("Entry cancelled. Try again.")
+                            ask_dock_name()
+                            return
+                        ask_res(dock_name)
+                    nav.app.request_input(f"'{dock_name}' is not a common name. Continue? (y/N):", _on_confirm)
+                else:
+                    ask_res(dock_name)
+            nav.app.request_input("Enter dock name (or 'done' if finished):", _on_dock, completer=dock_completer)
+
+        def ask_res(dock_name):
+            def _on_res(res):
+                if res is None or res.lower() == 'done':
+                    ask_dock_name()
+                    return
                 if not re.match(r"^\d+x\d+$", res):
-                    print(f"Invalid format: '{res}'. Use widthxheight (e.g., 1920x1080). Please try again.")
-                    continue
+                    nav.app.add_output(f"Invalid format: '{res}'. Use widthxheight (e.g., 1920x1080).")
+                    ask_res(dock_name)
+                    return
                 if res not in common_res:
-                    confirm = input(f"Warning: {res} is not a common resolution. Continue anyway? (y/N): ")
-                    if confirm.lower() not in ['y', 'yes']:
-                        continue
-                state.dock_config.add_dock(dock_name, res)
-                print(f"Added {dock_name} with resolution: {res}")
-                break
-        SaveStateAction(state).execute()
+                    def _on_confirm(resp):
+                        if resp is None or resp.lower() not in ('y', 'yes'):
+                            ask_res(dock_name)
+                            return
+                        state.dock_config.add_dock(dock_name, res)
+                        nav.app.add_output(f"Added {dock_name} with resolution: {res}")
+                        ask_dock_name()
+                    nav.app.request_input(f"'{res}' is not a common resolution. Continue? (y/N):", _on_confirm)
+                else:
+                    state.dock_config.add_dock(dock_name, res)
+                    nav.app.add_output(f"Added {dock_name} with resolution: {res}")
+                    ask_dock_name()
+            nav.app.request_input(f"Enter resolution for {dock_name} (e.g., 1920x1080, or 'done'):", _on_res, completer=dock_res_completer)
+
+        ask_dock_name()
 
     @to_panel
     def initialize_dock():
         if state.display_config.placement is None or not state.dock_config.names:
-            print("Screen placement and/or dock names not set.")
+            nav.app.set_message("Screen placement and/or dock names not set.")
             return
         coordinates = []
         current_x = state.display_config.placement
@@ -231,74 +245,74 @@ def build_app():
         WriteDefaultsAction("TTMenu", "disableHideInfoPanelOnHideTray", "1").execute()
         WriteDefaultsAction("TTMenu", "thinkHubDockShowCanvasOnUndock", "1").execute()
 
-    def select_integral():
+    def select_integral(callback):
         if not state.integral_config.integrals:
-            print("Error: No Integral serial ID set. Run '1) Find Integral Serial #' first.")
-            return None
-        elif len(state.integral_config.integrals) == 1:
+            nav.app.set_message("Error: No Integral serial ID set. Run '1) Find Integral Serial #' first.")
+            return
+        if len(state.integral_config.integrals) == 1:
             key = next(iter(state.integral_config.integrals))
-            print(f"Only one Integral found: Serial ID: {state.integral_config.integrals[key]['serial']}")
-            return key
+            nav.app.add_output(f"Using Integral: Serial ID {state.integral_config.integrals[key]['serial']}")
+            callback(key)
         else:
-            print("Multiple Integrals detected. Please select which one to use:")
+            nav.app.add_output("Multiple Integrals detected. Select which one to use:")
             for key, integral in state.integral_config.integrals.items():
-                print(f"{key}) Serial: {integral['serial']}, Firmware: {integral['firmware']}")
-            choice = input("Enter the number of the Integral: ")
-            if choice in state.integral_config.integrals:
-                return choice
-            else:
-                print("Invalid selection.")
+                nav.app.add_output(f"  {key}) Serial: {integral['serial']}, Firmware: {integral['firmware']}")
+            def _on_choice(choice):
+                if choice is None:
+                    return
+                if choice in state.integral_config.integrals:
+                    callback(choice)
+                else:
+                    nav.app.add_output("Invalid selection.")
+            nav.app.request_input("Enter the number of the Integral:", _on_choice)
 
-    @in_terminal
     def custom_integral_command():
-        selected_key = select_integral()
-        print("Enter command to run, or [help] for list of commands")
-        choice = input("> ")
-        if selected_key:
-            serial = state.integral_config.integrals[selected_key]['serial']
-            if choice == "help":
-                RunIntegralSerialAction(serial, "help").execute()
-            else:
-                RunIntegralSerialAction(serial, choice).execute()
+        def _on_selected(key):
+            nav.app.add_output("Enter command to run, or 'help' for list of commands")
+            def _on_command(cmd):
+                if cmd is None:
+                    return
+                serial = state.integral_config.integrals[key]['serial']
+                to_panel(lambda: RunIntegralSerialAction(serial, cmd).execute())()
+            nav.app.request_input(">", _on_command)
+        select_integral(_on_selected)
 
-    @in_terminal
     def set_4k_mirror():
-        selected_key = select_integral()
-        if selected_key:
-            serial = state.integral_config.integrals[selected_key]['serial']
-            print(f"Setting 4K mirror for Serial ID: {serial}")
-            RunIntegralSerialAction(serial, "setScalingNone").execute()
-            RunIntegralSerialAction(serial, "reboot").execute()
+        def _on_selected(key):
+            serial = state.integral_config.integrals[key]['serial']
+            nav.app.add_output(f"Setting 4K mirror for Serial ID: {serial}")
+            def _run():
+                RunIntegralSerialAction(serial, "setScalingNone").execute()
+                RunIntegralSerialAction(serial, "reboot").execute()
+            to_panel(_run)()
+        select_integral(_on_selected)
 
-    @in_terminal
     def reboot_integral():
-        selected_key = select_integral()
-        if selected_key:
-            serial = state.integral_config.integrals[selected_key]['serial']
-            print(f"Rebooting Integral with Serial ID: {serial}")
-            RunIntegralSerialAction(serial, "reboot").execute()
-        else:
-            print("No Integral selected.")
+        def _on_selected(key):
+            serial = state.integral_config.integrals[key]['serial']
+            nav.app.add_output(f"Rebooting Integral with Serial ID: {serial}")
+            to_panel(lambda: RunIntegralSerialAction(serial, "reboot").execute())()
+        select_integral(_on_selected)
 
-    @in_terminal
     def interrogate_integral():
-        selected_key = select_integral()
-        if selected_key:
-            serial = state.integral_config.integrals[selected_key]['serial']
-            print(f"Interrogating Integral with Serial ID: {serial}")
-            print("Be patient... this can take a minute...")
-            script_path = os.path.join(LOCAL_SCRIPTS_DIR, "integralStatus.py")
-            result = subprocess.run(
-                [sys.executable, script_path, "--serial", f"/dev/tty.usbserial-{serial}", "--interrogate"],
-                capture_output=True, text=True
-            )
-            if result.returncode == 0:
-                print("Interrogate Output:")
-                print(result.stdout)
-            else:
-                print(f"Error: Interrogate failed with return code {result.returncode}")
-                print("Error Output:")
-                print(result.stderr)
+        def _on_selected(key):
+            serial = state.integral_config.integrals[key]['serial']
+            nav.app.add_output(f"Interrogating Integral with Serial ID: {serial}")
+            nav.app.add_output("Be patient... this can take a minute...")
+            def _run():
+                script_path = os.path.join(LOCAL_SCRIPTS_DIR, "integralStatus.py")
+                result = subprocess.run(
+                    [sys.executable, script_path, "--serial", f"/dev/tty.usbserial-{serial}", "--interrogate"],
+                    capture_output=True, text=True
+                )
+                if result.returncode == 0:
+                    print("Interrogate Output:")
+                    print(result.stdout)
+                else:
+                    print(f"Error: Interrogate failed with return code {result.returncode}")
+                    print(result.stderr)
+            to_panel(_run)()
+        select_integral(_on_selected)
 
     @to_panel
     def get_integral_serial_id():
@@ -319,10 +333,10 @@ def build_app():
                 print(f"Integral {idx}: serial={serial}, firmware={firmware}")
                 SaveStateAction(state).execute()
             else:
-                print(f"No Integral found for serial: {serial}")
+                nav.app.set_message(f"No Integral found for serial: {serial}")
         state.integral_config.integrals = integrals
         if not integrals:
-            print("No serial USB found.")
+            nav.app.set_message("No serial USB found.")
 
     @to_panel
     def set_display_serial_crontab():
@@ -334,18 +348,13 @@ def build_app():
     @to_panel
     def set_display_serial_defaults(model):
         if not state.display_config.serial:
-            print("No display serial found, run 1) Find USB Serial #.")
+            nav.app.set_message("No display serial found, run 1) Find USB Serial #.")
             return
         serial = state.display_config.serial
         state.display_config.model = model
         SaveStateAction(state).execute()
-        script_path = os.path.join(SCRIPTS_DIR, f"{model}.sh")
-        print(f"Running script: {script_path} {serial}")
-        result = subprocess.run([script_path, serial], capture_output=True, text=True)
-        if result.stdout:
-            print(result.stdout)
-        if result.stderr:
-            print(result.stderr)
+        module = importlib.import_module(f"src.scripts.{model}")
+        module.configure(serial)
         displays_list = ["AvocorH20", "AvocorF50", "AvocorG60"]
         if model in displays_list:
             print("Adding crontab for displayMegaScript.py")
@@ -357,7 +366,7 @@ def build_app():
         result = subprocess.run(['ls /dev/tty.usb*'], shell=True, capture_output=True, text=True)
         matches = re.findall(r'/dev/tty\.usbserial-([A-Za-z0-9]+)', result.stdout)
         if not matches:
-            print(f"No matching serial found for {choice}")
+            nav.app.set_message(f"No matching serial found for {choice}")
             return
         for serial in matches:
             script_path = os.path.join(LOCAL_SERIAL_DIR, f"{choice}.py")
@@ -367,69 +376,77 @@ def build_app():
             )
             if "Display is ON" in serial_result.stdout:
                 state.display_config.serial = serial
-                print(f"Display Serial ID set to: {serial}")
+                nav.app.set_message(f"Display Serial ID set to: {serial}")
                 SaveStateAction(state).execute()
                 nav.back()
             else:
-                print(f"No display found for serial: {serial}")
+                nav.app.set_message(f"No display found for serial: {serial}")
 
-    @in_terminal
     def run_betterdisplays_sh():
-        print("\nIf you want to add a license for BetterDisplays,\n"
-              "please copy the command from library page and run\n"
-              "it in terminal.\n\n"
-              "https://sites.google.com/a/t1v.com/process-docs/technical-knowledge-database/virtual-fitheadless-better-display-setup\n")
-        continue_resp = input("Type:\n"
-                              "[Q]uit to stop and enter license\n"
-                              "[B]ack to return to previous menu\n"
-                              "Any other key to continue...\n> ")
-        if continue_resp.lower() in ("q", "quit"):
-            exit_app()
-        elif continue_resp.lower() in ("b", "back"):
-            return
-        resp = input("Is TTMenu toggled down? (y/N): ")
-        if resp.lower() in ("n", "no"):
-            ToggleTTMenuAction().execute()
-        print("Beginning BetterDisplays setup, this may take a few moments...")
-        script_path = os.path.join(SCRIPTS_DIR, "better_displays.sh")
-        result = subprocess.run(
-            [script_path, str(state.display_config.placement), str(state.display_config.count)],
-            capture_output=True, text=True
-        )
-        if result.returncode == 0:
-            print("BetterDisplays setup completed successfully.")
-            print(result.stdout)
-        else:
-            print("Error during BetterDisplays setup:")
-            print(result.stderr)
+        nav.app.add_output("If you want to add a license for BetterDisplays,")
+        nav.app.add_output("copy the command from the library page and run it in terminal.")
+        nav.app.add_output("https://sites.google.com/a/t1v.com/process-docs/technical-knowledge-database/virtual-fitheadless-better-display-setup")
+        def _on_continue(resp):
+            if resp is None or resp.lower() in ("q", "quit"):
+                exit_app()
+                return
+            if resp.lower() in ("b", "back"):
+                return
+            def _on_toggled(resp2):
+                if resp2 is not None and resp2.lower() in ("n", "no"):
+                    to_panel(lambda: ToggleTTMenuAction().execute())()
+                nav.app.add_output("Beginning BetterDisplays setup, this may take a few moments...")
+                def _run():
+                    script_path = os.path.join(SCRIPTS_DIR, "better_displays.sh")
+                    result = subprocess.run(
+                        [script_path, str(state.display_config.placement), str(state.display_config.count)],
+                        capture_output=True, text=True
+                    )
+                    if result.returncode == 0:
+                        print("BetterDisplays setup completed successfully.")
+                        print(result.stdout)
+                    else:
+                        print("Error during BetterDisplays setup:")
+                        print(result.stderr)
+                to_panel(_run)()
+            nav.app.request_input("Is TTMenu toggled down? (y/N):", _on_toggled)
+        nav.app.request_input("[Q]uit / [B]ack / any key to continue:", _on_continue)
 
-    @in_terminal
     def initialize_software_vc(choice):
         if state.display_config.placement is None or state.display_config.height is None:
-            print("Error: Screen placement not set.\nPlease set screen in Display menu first.")
+            nav.app.add_output("Error: Screen placement not set. Please set screen in Display menu first.")
             return
+
+        def _do_vc():
+            display_width = state.display_config.placement
+            height = state.display_config.height - 720
+            dock_width = state.dock_config.total_width
+            placement = display_width + dock_width
+            multi_string = f"{{{{{placement}, {height}}}}}, {{{{1280, 720}}}}"
+            def _run():
+                if state.display_config.count == 1:
+                    WriteDefaultsAction("TTMenu", "screenUpdateOnAllChanges", "1").execute()
+                    WriteDefaultsAction("TTMenu", "desktopMoveAllWindows", "1").execute()
+                else:
+                    WriteDefaultsAction("TTMenu", "desktopMoveAllWindows", "1").execute()
+                    WriteDefaultsAction("TTMenu", "thinkHubDesktopThinkHubScreenIndex", "0").execute()
+                    WriteDefaultsAction("TTMenu", "thinkHubDesktopScreenRect", multi_string, value_type="-string").execute()
+                if choice in ("zoom", "both"):
+                    WriteDefaultsAction("TTMenu", "ThinkHubZoom", "1").execute()
+                if choice in ("teams", "both"):
+                    WriteDefaultsAction("TTMenu", "ThinkHubTeams", "1").execute()
+                    WriteDefaultsAction("automate", "VCCaptureRect", f"{placement},0,1280,720", value_type="-string").execute()
+                SaveStateAction(state).execute()
+            to_panel(_run)()
+
         if not state.dock_config.enabled:
-            resp = input("Docks should be set up before VC. Continue anyway? (y/N): ")
-            if resp.lower() not in ("y", "yes"):
-                return
-        display_width = state.display_config.placement
-        height = state.display_config.height - 720
-        dock_width = state.dock_config.total_width
-        placement = display_width + dock_width
-        multi_string = f"{{{{{placement}, {height}}}}}, {{{{1280, 720}}}}"
-        if state.display_config.count == 1:
-            WriteDefaultsAction("TTMenu", "screenUpdateOnAllChanges", "1").execute()
-            WriteDefaultsAction("TTMenu", "desktopMoveAllWindows", "1").execute()
+            def _on_confirm(resp):
+                if resp is None or resp.lower() not in ("y", "yes"):
+                    return
+                _do_vc()
+            nav.app.request_input("Docks should be set up before VC. Continue anyway? (y/N):", _on_confirm)
         else:
-            WriteDefaultsAction("TTMenu", "desktopMoveAllWindows", "1").execute()
-            WriteDefaultsAction("TTMenu", "thinkHubDesktopThinkHubScreenIndex", "0").execute()
-            WriteDefaultsAction("TTMenu", "thinkHubDesktopScreenRect", multi_string, value_type="-string").execute()
-        if choice in ("zoom", "both"):
-            WriteDefaultsAction("TTMenu", "ThinkHubZoom", "1").execute()
-        if choice in ("teams", "both"):
-            WriteDefaultsAction("TTMenu", "ThinkHubTeams", "1").execute()
-            WriteDefaultsAction("automate", "VCCaptureRect", f"{placement},0,1280,720", value_type="-string").execute()
-        SaveStateAction(state).execute()
+            _do_vc()
 
     @to_panel
     def set_magewell_defaults():

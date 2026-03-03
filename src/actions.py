@@ -2,7 +2,7 @@ import subprocess
 import os
 import sys
 import json
-from models import DisplayConfig, DockConfig, IntegralConfig, VCConfig
+from src.models import DisplayConfig, DockConfig, IntegralConfig, VCConfig
 
 
 SCRIPTS_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../scripts"))

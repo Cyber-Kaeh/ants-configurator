@@ -2,10 +2,12 @@ from prompt_toolkit import Application
 from prompt_toolkit.document import Document
 from prompt_toolkit.formatted_text import FormattedText, HTML
 from prompt_toolkit.key_binding import KeyBindings, merge_key_bindings
-from prompt_toolkit.layout import Layout, HSplit, VSplit, Window, ConditionalContainer
+from prompt_toolkit.layout import Layout, HSplit, VSplit, Window, ConditionalContainer, FloatContainer, Float
 from prompt_toolkit.layout.controls import FormattedTextControl
 from prompt_toolkit.filters import Condition, has_focus
 from prompt_toolkit.styles import Style
+from prompt_toolkit.completion import DummyCompleter
+from prompt_toolkit.layout.menus import CompletionsMenu
 from prompt_toolkit.widgets import TextArea, Frame
 
 
@@ -21,6 +23,7 @@ STYLE = Style.from_dict({
     "output-empty":       "fg:#555555 italic",
     "input-prompt":       "fg:#ffffff",
     "input-field":        "bg:#0d1117 fg:#ffffff",
+    "message-bar":        "bg:#1a1a2e fg:#88aaff",
 })
 
 
@@ -41,6 +44,7 @@ class MenuApp:
         self._input_active = False
         self._input_prompt_text = ""
         self._input_callback = None
+        self._message = ""
 
         self._text_area = TextArea(
             multiline=False,
@@ -97,6 +101,7 @@ class MenuApp:
         def _input_submit(_event):
             value = self._text_area.text
             self._text_area.text = ""
+            self._text_area.buffer.completer = DummyCompleter()
             self._input_active = False
             callback = self._input_callback
             self._input_callback = None
@@ -107,6 +112,7 @@ class MenuApp:
         @kb.add("escape", filter=in_input)
         def _input_cancel(_event):
             self._text_area.text = ""
+            self._text_area.buffer.completer = DummyCompleter()
             self._input_active = False
             self._input_callback = None
             self._app.layout.focus(self._menu_window)
@@ -155,15 +161,26 @@ class MenuApp:
 
                 style = "class:menu-item.selected" if i == self._selected_index else "class:menu-item"
                 prefix = "  > " if i == self._selected_index else "    "
-                tokens.append((style, f"{prefix}{key}) {label}\n", make_click_handler(i, action)))
+                tokens.append((style, f"{prefix}{label}\n", make_click_handler(i, action)))
             return FormattedText(tokens)
 
+        def get_message_bar():
+            if self._message:
+                return FormattedText([("class:message-bar", f"  {self._message}")])
+            return FormattedText([])
+
         def get_toolbar():
+            if in_output():
+                return HTML(
+                    "  [Output]  <title>↑↓</title> scroll  "
+                    "<title>drag</title> select  <title>⌘C</title> copy  "
+                    "<title>Tab/Esc</title> exit output"
+                )
             return HTML(
                 "  <title>↑↓</title> navigate  <title>Enter</title> select  "
                 "<title>b</title> back  <title>h</title> home  "
                 "<title>t</title> toggle  <title>qq</title> quit  "
-                "<title>Tab</title> scroll output  <title>Esc</title> exit input/output"
+                "<title>Tab</title> → output  <title>Esc</title> exit input"
             )
 
         # dont_extend_width=True: Window reports its natural content width (longest
@@ -230,31 +247,53 @@ class MenuApp:
                     self._menu_window,
                 ]),
                 right_panel,
-            ]),
+            ], padding=2),
+            Window(FormattedTextControl(get_message_bar), height=1, style="class:message-bar"),
             Window(FormattedTextControl(get_toolbar), height=1, style="class:toolbar"),
         ])
 
-        layout = Layout(main_content, focused_element=self._menu_window)
+        layout = Layout(
+            FloatContainer(
+                content=main_content,
+                floats=[
+                    Float(
+                        content=CompletionsMenu(max_height=8, scroll_offset=1),
+                        xcursor=True,
+                        ycursor=True,
+                    ),
+                ],
+            ),
+            focused_element=self._menu_window,
+        )
 
         self._app = Application(
             layout=layout,
             key_bindings=all_bindings,
             style=STYLE,
             full_screen=True,
-            mouse_support=True,
+            # Disable app mouse handling when output panel is focused so the
+            # terminal receives native mouse events (click-drag selection, copy).
+            mouse_support=~in_output,
         )
 
-    def request_input(self, prompt_text, callback):
+    def request_input(self, prompt_text, callback, completer=None):
         """Show the input panel. callback(value) on Enter, callback(None) on Escape."""
         self._input_prompt_text = prompt_text
         self._input_callback = callback
         self._input_active = True
         self._text_area.text = ""
+        self._text_area.buffer.completer = completer if completer is not None else DummyCompleter()
         self._app.layout.focus(self._text_area)
         self._app.invalidate()
 
+    def set_message(self, text: str):
+        """Set the message bar text. Pass an empty string to clear."""
+        self._message = text
+        self._app.invalidate()
+
     def add_output(self, message: str):
-        """Append a line to the output panel and auto-scroll to the bottom."""
+        """Append a line to the output panel. Cursor stays at end so the
+        latest output is visible; keyboard arrows scroll when Tab-focused."""
         self._output_lines.append(message)
         text = "\n".join(f"  {line}" for line in self._output_lines)
         self._output_area.buffer.set_document(
@@ -273,6 +312,9 @@ class MenuApp:
             self._art = menu.startup_art
         self._current_menu = menu
         self._selected_index = 0
+        self._output_lines.clear()
+        self._output_area.buffer.set_document(Document(""), bypass_readonly=True)
+        self._message = ""
         self._app.invalidate()
 
     def run(self):
