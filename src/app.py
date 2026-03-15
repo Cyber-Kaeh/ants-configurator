@@ -1,4 +1,4 @@
-from src.menu3 import Menu, MenuApp
+from src.menu import Menu, MenuApp
 import sys
 import subprocess
 import os
@@ -171,10 +171,10 @@ def build_app():
         RunCommandAction(command, success_message="UPDD minimum notify level set.").execute()
         command = ["/usr/local/bin/upddprocesses", "stop", "-c"]
         RunCommandAction(command, success_message="UPDD processes stopped.").execute()
-        crontab_label = "# Disable UPDD Commander so that touch events pass straight to TTMenu"
-        crontab_entry = "@reboot /bin/sleep 80; /usr/local/bin/upddprocesses stop -c"
-        AddCrontabEntryAction(crontab_label).execute()
-        AddCrontabEntryAction(crontab_entry).execute()
+        AddCrontabEntryAction(
+            "@reboot /bin/sleep 80; /usr/local/bin/upddprocesses stop -c",
+            comment="Disable UPDD Commander so that touch events pass straight to TTMenu",
+        ).execute()
 
     def configure_docks():
         common_names = ["Dock1", "Dock2", "Dock3", "Dock4", "Dock", "MTR"]
@@ -341,10 +341,10 @@ def build_app():
 
     @to_panel
     def set_display_serial_crontab():
-        label_entry = "#Checks display(s) signal status"
-        crontab_entry = "@reboot /bin/sleep 200; /usr/local/bin/python /Local/scripts/DisplayMegaScript.py --fix --notify --reboot"
-        AddCrontabEntryAction(label_entry).execute()
-        AddCrontabEntryAction(crontab_entry).execute()
+        AddCrontabEntryAction(
+            "@reboot /bin/sleep 200; /usr/local/bin/python /Local/scripts/DisplayMegaScript.py --fix --notify --reboot",
+            comment="Checks display(s) signal status",
+        ).execute()
 
     @to_panel
     def set_display_serial_defaults(model):

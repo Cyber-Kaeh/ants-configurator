@@ -12,18 +12,31 @@ _________   _____  ___      ___ ________  ________
 
 A menu driven CLI tool to help speed up the post-imaging process for ThinkHub devices.
 
-## Getting Started
+## Quick Start
 
 Clone this repository to the target device.  
 `git clone github.com/Cyber-Kaeh/ants-configurator.git`
 
-Navigate to the src dir.  
-`cd ants-configurator/src`
+Navigate inside the dir.  
+`cd ants-configurator`
 
-Run the app.  
-`python __main__.py`
+Run the  pex app.  
+`python ants-configurator.pex`
+
+Or run source.  
+`python -m src`
 
 Go through the menus to commence configuratortating! Or jump around as needed. 
 The information you enter into the app, such as screen count, screen resolutioin, dock names, etc.,
 is saved automatically in the app then reloaded if you quit and re-open configurator.
-Defaults and commands are sent in real time and you will get feedback on their success/failure.
+Defaults and commands are sent in real time and you will get feedback on their success/failure.  
+  
+Configuration file is located at:  
+`~/.config/ants-configurator/app_state.json`
+
+
+## Packaging with Pex
+
+```Bash
+pex . -o ants-configurator.pex -c ants-configurator --sh-boot
+```

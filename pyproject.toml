@@ -7,7 +7,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ants-configurator"
-version = "0.1.0"
+version = "0.1.1"
 description = "A menu driven CLI tool to help speed up the post-imaging process for ThinkHub devices"
 requires-python = ">=3.8"
 dependencies = [
@@ -15,6 +15,7 @@ dependencies = [
     "mdurl==0.1.2",
     "packaging==26.0",
     "prompt_toolkit==3.0.52",
+    "python-crontab==3.3.0",
     "Pygments==2.19.2",
     "questionary==2.1.1",
     "rich==14.3.3",
@@ -25,6 +26,3 @@ ants-configurator = "src.__main__:main"
 
 [tool.setuptools]
 packages = ["src"]
-
-[tool.setuptools.package-data]
-src = ["*.json"]

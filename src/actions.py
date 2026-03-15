@@ -9,12 +9,15 @@ SCRIPTS_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../script
 LOCAL_SCRIPTS_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "/Local/scripts"))
 LOCAL_SERIAL_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "/Local/scripts/serial"))
 
+STATE_FILE_PATH = os.path.expanduser("~/.config/ants-configurator/app_state.json")
+
 class SaveStateAction:
-    def __init__(self, state, file_path="app_state.json"):
+    def __init__(self, state, file_path=STATE_FILE_PATH):
         self.state = state
         self.file_path = file_path
 
     def execute(self):
+        os.makedirs(os.path.dirname(self.file_path), exist_ok=True)
         data_to_save = {
             "display_config": self.state.display_config.to_dict(),
             "dock_config": self.state.dock_config.to_dict(),
@@ -26,7 +29,7 @@ class SaveStateAction:
         print("Configurations saved.")
 
 class LoadStateAction:
-    def __init__(self, state, file_path="app_state.json"):
+    def __init__(self, state, file_path=STATE_FILE_PATH):
         self.state = state
         self.file_path = file_path
 
@@ -46,7 +49,7 @@ class LoadStateAction:
 
 
 class DeleteConfigAction:
-    def __init__(self, file_path="app_state.json"):
+    def __init__(self, file_path=STATE_FILE_PATH):
         self.file_path = file_path
 
     def execute(self):
@@ -139,47 +142,31 @@ class RunCommandAction:
 
 
 class AddCrontabEntryAction:
-    def __init__(self, entry):
-        self.entry = entry
+    def __init__(self, command, comment=""):
+        if command.startswith("@reboot "):
+            self.command = command[len("@reboot "):]
+            self.reboot = True
+        else:
+            self.command = command
+            self.reboot = False
+        self.comment = comment
 
     def execute(self):
-        """
-        Safely adds an entry to the user's crontab
-        """
-        try:
-            # 1. Get current crontab content
-            try:
-                # check_output returns bytes, so we decode to string
-                current_crontab = subprocess.check_output(
-                    ['crontab', '-l'], stderr=subprocess.DEVNULL
-                ).decode('utf-8')
-            except subprocess.CalledProcessError:
-                # This happens if the crontab is empty (exit code 1 on some systems)
-                current_crontab = ""
+        from crontab import CronTab
+        cron = CronTab(user=True)
 
-            # 2. Check if entry already exists (in Python, not grep)
-            # We strip() to ensure trailing newlines don't cause false negatives
-            if self.entry.strip() in current_crontab:
-                print(f"Crontab entry already exists: '{self.entry.strip()[:50]}...'")
-                return
+        if any(job.command == self.command for job in cron):
+            print(f"Crontab entry already exists: '{self.command[:60]}'")
+            return
 
-            # 3. Append the new entry
-            # Ensure we have a newline before the new entry if the file isn't empty
-            if current_crontab and not current_crontab.endswith('\n'):
-                current_crontab += '\n'
-            
-            new_crontab = current_crontab + self.entry + '\n'
+        job = cron.new(command=self.command)
+        if self.reboot:
+            job.every_reboot()
+        if self.comment:
+            job.set_comment(self.comment)
 
-            # 4. Write the new content back to crontab
-            subprocess.run(
-                ['crontab', '-'],
-                input=new_crontab.encode('utf-8'),
-                check=True
-            )
-            print(f"Ensured crontab entry exists: '{self.entry.strip()[:50]}...'")
-
-        except subprocess.CalledProcessError as e:
-            print(f"Error modifying crontab: {e}")
+        cron.write()
+        print(f"Added crontab entry: '{self.command[:60]}'")
 
 class RunIntegralSerialAction:
     def __init__(self, serial, command):
