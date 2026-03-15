@@ -691,7 +691,15 @@ def build_app():
     def _toggle(_event):
         to_panel(lambda: ToggleTTMenuAction().execute())()
 
-    app = MenuApp(extra_bindings=kb)
+    app = MenuApp(
+        extra_bindings=kb,
+        toolbar_actions=[
+            ("b",  "back",   nav.back),
+            ("h",  "home",   nav.home),
+            ("t",  "toggle", lambda: to_panel(lambda: ToggleTTMenuAction().execute())()),
+            ("qq", "quit",   exit_app),
+        ],
+    )
     nav.app = app
 
     return app, nav, main_menu

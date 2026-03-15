@@ -17,6 +17,7 @@ STYLE = Style.from_dict({
     "menu-item":          "fg:#ffffff",
     "menu-item.selected": "fg:#ffaa00 bold",
     "toolbar":            "bg:#333333 fg:#aaaaaa",
+    "toolbar-key":        "bg:#333333 fg:#ffffff bold",
     "frame.border":       "fg:#0088ff",
     "frame.label":        "fg:#0088ff bold",
     "output-line":        "fg:#cccccc",
@@ -35,12 +36,13 @@ class Menu:
 
 
 class MenuApp:
-    def __init__(self, extra_bindings=None):
+    def __init__(self, extra_bindings=None, toolbar_actions=None):
         self._current_menu = None
         self._selected_index = 0
         self._art = None
         self._output_lines: list[str] = []
 
+        self._toolbar_actions = toolbar_actions or []
         self._input_active = False
         self._input_prompt_text = ""
         self._input_callback = None
@@ -170,18 +172,23 @@ class MenuApp:
             return FormattedText([])
 
         def get_toolbar():
+            from prompt_toolkit.mouse_events import MouseEventType
+
+            def make_handler(cb):
+                def handler(mouse_event):
+                    if mouse_event.event_type == MouseEventType.MOUSE_UP:
+                        cb()
+                return handler
+
             if in_output():
-                return HTML(
-                    "  [Output]  <title>↑↓</title> scroll  "
-                    "<title>drag</title> select  <title>⌘C</title> copy  "
-                    "<title>Tab/Esc</title> exit output"
-                )
-            return HTML(
-                "  <title>↑↓</title> navigate  <title>Enter</title> select  "
-                "<title>b</title> back  <title>h</title> home  "
-                "<title>t</title> toggle  <title>qq</title> quit  "
-                "<title>Tab</title> → output  <title>Esc</title> exit input"
-            )
+                return FormattedText([("class:toolbar", "  [Output]  ↑↓ scroll  drag select  Tab/Esc exit output")])
+
+            tokens = [("class:toolbar", "  ↑↓ navigate  Enter select  ")]
+            for key, desc, callback in self._toolbar_actions:
+                tokens.append(("class:toolbar-key", f" {key} ", make_handler(callback)))
+                tokens.append(("class:toolbar", f" {desc}  "))
+            tokens.append(("class:toolbar", "Tab → output"))
+            return FormattedText(tokens)
 
         # dont_extend_width=True: Window reports its natural content width (longest
         # menu-item line) as a fixed int to VSplit, so the right panel gets the rest.

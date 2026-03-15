@@ -1,21 +1,19 @@
-(BUG) Software VC doesn't account for multi displays properly. Sets single
+(BUG)(testing) Software VC doesn't account for multi displays properly. Sets single
 display defaults (screenUpdateOnAllChanges) even after selecting 2 screens.
-
+ - may have fixed with updated save state logic
 (UPDATE) Include these 2 defaults in with the LCD/LED walls defaults:
 ttdef thinkHubMediumLineDrawWidth 10
 ttdef thinkHubThickLineDrawWidth 20
 (FEAT) Add this default fo Avocor displays. somehwere in serial scripts? ttdef ttdef HIDDisableIgnoreDeviceAddRemove 1
-
-Create logic for setting integral crontabs.
+(feat)(testing) Make bottom toolbar clickable
+(feat) Create logic for setting integral crontabs.
 (testing)Add pfstop somewhere
 Get someone else to test UI/UX
 Set up a new device with periphrials for testing
 Clean up scripts folder
 Clean up code base of comments or unused lines
-Test crontab actions
-  Add crontabs for integrals and display serial
-  Add PQ menu and crontabs
-(testing) crontabs for UPDD works. need further testing
+(testing) Added python-crontab library for UPDD.
+(done) crontabs for UPDD works. need further testing
 Add a wildcard command action. Take input and create a list. Iterate that list into
   a subprocess command. Allows the user to run arbitrary shell commands while still
   in the app.
