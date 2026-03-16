@@ -1,3 +1,5 @@
+import threading
+import asyncio
 from prompt_toolkit import Application
 from prompt_toolkit.document import Document
 from prompt_toolkit.formatted_text import FormattedText, HTML
@@ -47,6 +49,7 @@ class MenuApp:
         self._input_prompt_text = ""
         self._input_callback = None
         self._message = ""
+        self._loop = None  # Set in run() for thread-safe updates
 
         self._text_area = TextArea(
             multiline=False,
@@ -295,12 +298,23 @@ class MenuApp:
 
     def set_message(self, text: str):
         """Set the message bar text. Pass an empty string to clear."""
+        if self._loop and threading.current_thread() is not threading.main_thread():
+            self._loop.call_soon_threadsafe(self._set_message_impl, text)
+        else:
+            self._set_message_impl(text)
+
+    def _set_message_impl(self, text: str):
         self._message = text
         self._app.invalidate()
 
     def add_output(self, message: str):
-        """Append a line to the output panel. Cursor stays at end so the
-        latest output is visible; keyboard arrows scroll when Tab-focused."""
+        """Append a line to the output panel. Thread-safe: can be called from background threads."""
+        if self._loop and threading.current_thread() is not threading.main_thread():
+            self._loop.call_soon_threadsafe(self._add_output_impl, message)
+        else:
+            self._add_output_impl(message)
+
+    def _add_output_impl(self, message: str):
         self._output_lines.append(message)
         text = "\n".join(f"  {line}" for line in self._output_lines)
         self._output_area.buffer.set_document(
@@ -325,4 +339,7 @@ class MenuApp:
         self._app.invalidate()
 
     def run(self):
-        self._app.run()
+        async def _run():
+            self._loop = asyncio.get_event_loop()
+            await self._app.run_async()
+        asyncio.run(_run())

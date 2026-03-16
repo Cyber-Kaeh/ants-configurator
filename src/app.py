@@ -6,6 +6,7 @@ import re
 import io
 import contextlib
 import importlib
+import threading
 from prompt_toolkit.key_binding import KeyBindings
 from prompt_toolkit import prompt
 from prompt_toolkit.completion import WordCompleter
@@ -77,6 +78,21 @@ def build_app():
                     nav.app.add_output(line)
             return result
         return wrapper
+
+    def run_streaming(cmd, on_done=None):
+        """Run cmd in a background thread, streaming each output line to the panel in real time."""
+        def _thread():
+            proc = subprocess.Popen(
+                cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1
+            )
+            for raw_line in proc.stdout:
+                line = raw_line.rstrip('\n')
+                if nav.app:
+                    nav.app.add_output(line)
+            proc.wait()
+            if on_done and nav.app:
+                on_done(proc.returncode)
+        threading.Thread(target=_thread, daemon=True).start()
 
     def calculate_frame():
         try:
@@ -299,45 +315,46 @@ def build_app():
         def _on_selected(key):
             serial = state.integral_config.integrals[key]['serial']
             nav.app.add_output(f"Interrogating Integral with Serial ID: {serial}")
-            nav.app.add_output("Be patient... this can take a minute...")
-            def _run():
-                script_path = os.path.join(LOCAL_SCRIPTS_DIR, "integralStatus.py")
-                result = subprocess.run(
-                    [sys.executable, script_path, "--serial", f"/dev/tty.usbserial-{serial}", "--interrogate"],
-                    capture_output=True, text=True
-                )
-                if result.returncode == 0:
-                    print("Interrogate Output:")
-                    print(result.stdout)
-                else:
-                    print(f"Error: Interrogate failed with return code {result.returncode}")
-                    print(result.stderr)
-            to_panel(_run)()
+            nav.app.add_output("Starting interrogation (be patient, ~1 minute)...")
+            script_path = os.path.join(LOCAL_SCRIPTS_DIR, "integralStatus.py")
+            run_streaming(
+                [sys.executable, script_path, "--serial", f"/dev/tty.usbserial-{serial}", "--interrogate"],
+                on_done=lambda rc: nav.app.add_output(
+                    "Interrogation complete." if rc == 0 else f"Interrogation failed (exit code {rc})."
+                ),
+            )
         select_integral(_on_selected)
 
-    @to_panel
     def get_integral_serial_id():
-        result = subprocess.run(['ls /dev/tty.usb*'], shell=True, capture_output=True, text=True)
-        matches = re.findall(r'/dev/tty\.usbserial-([A-Za-z0-9]+)', result.stdout)
-        print("Serial Matches:", matches)
-        integrals = {}
-        for idx, serial in enumerate(matches, 1):
-            script_path = os.path.join(LOCAL_SERIAL_DIR, "integralSerial.py")
-            serial_result = subprocess.run(
-                [sys.executable, script_path, f"/dev/tty.usbserial-{serial}", "getVersion"],
-                capture_output=True, text=True)
-            get_version_output = serial_result.stdout
-            if "HdFury" in get_version_output:
-                version_match = re.search(r"ver FW: ([\d.]+)", get_version_output)
-                firmware = version_match.group(1) if version_match else None
-                integrals[str(idx)] = {"serial": serial, "firmware": firmware}
-                print(f"Integral {idx}: serial={serial}, firmware={firmware}")
-                SaveStateAction(state).execute()
+        def _run():
+            result = subprocess.run(['ls /dev/tty.usb*'], shell=True, capture_output=True, text=True)
+            matches = re.findall(r'/dev/tty\.usbserial-([A-Za-z0-9]+)', result.stdout)
+            if not matches:
+                nav.app.set_message("No serial USB found.")
+                return
+            nav.app.add_output(f"Found {len(matches)} serial device(s): {', '.join(matches)}")
+            integrals = {}
+            for idx, serial in enumerate(matches, 1):
+                nav.app.add_output(f"Checking serial {serial}...")
+                script_path = os.path.join(LOCAL_SERIAL_DIR, "integralSerial.py")
+                serial_result = subprocess.run(
+                    [sys.executable, script_path, f"/dev/tty.usbserial-{serial}", "getVersion"],
+                    capture_output=True, text=True)
+                get_version_output = serial_result.stdout
+                if "HdFury" in get_version_output:
+                    version_match = re.search(r"ver FW: ([\d.]+)", get_version_output)
+                    firmware = version_match.group(1) if version_match else None
+                    integrals[str(idx)] = {"serial": serial, "firmware": firmware}
+                    nav.app.add_output(f"Integral {idx}: serial={serial}, firmware={firmware}")
+                    SaveStateAction(state).execute()
+                else:
+                    nav.app.add_output(f"Serial {serial}: not an Integral (no HdFury response)")
+            state.integral_config.integrals = integrals
+            if not integrals:
+                nav.app.set_message("No Integrals found.")
             else:
-                nav.app.set_message(f"No Integral found for serial: {serial}")
-        state.integral_config.integrals = integrals
-        if not integrals:
-            nav.app.set_message("No serial USB found.")
+                nav.app.add_output(f"Done. Found {len(integrals)} Integral(s).")
+        threading.Thread(target=_run, daemon=True).start()
 
     @to_panel
     def set_display_serial_crontab():
