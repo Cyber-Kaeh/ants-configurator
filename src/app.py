@@ -381,24 +381,27 @@ def build_app():
 
     @to_panel
     def get_display_serial_id(choice):
-        result = subprocess.run(['ls /dev/tty.usb*'], shell=True, capture_output=True, text=True)
-        matches = re.findall(r'/dev/tty\.usbserial-([A-Za-z0-9]+)', result.stdout)
-        if not matches:
-            nav.app.set_message(f"No matching serial found for {choice}")
-            return
-        for serial in matches:
-            script_path = os.path.join(LOCAL_SERIAL_DIR, f"{choice}.py")
-            serial_result = subprocess.run(
-                [sys.executable, script_path, f"/dev/tty.usbserial-{serial}", "GetPower"],
-                capture_output=True, text=True
-            )
-            if "Display is ON" in serial_result.stdout:
-                state.display_config.serial = serial
-                nav.app.set_message(f"Display Serial ID set to: {serial}")
-                SaveStateAction(state).execute()
-                nav.back()
-            else:
-                nav.app.set_message(f"No display found for serial: {serial}")
+        def _run():
+            result = subprocess.run(['ls /dev/tty.usb*'], shell=True, capture_output=True, text=True)
+            matches = re.findall(r'/dev/tty\.usbserial-([A-Za-z0-9]+)', result.stdout)
+            if not matches:
+                nav.app.set_message(f"No matching serial found for {choice}")
+                return
+            for serial in matches:
+                nav.app.add_output(f"Checking serial {serial}...")
+                script_path = os.path.join(LOCAL_SERIAL_DIR, f"{choice}.py")
+                serial_result = subprocess.run(
+                    [sys.executable, script_path, f"/dev/tty.usbserial-{serial}", "GetPower"],
+                    capture_output=True, text=True
+                )
+                if "Display is ON" in serial_result.stdout:
+                    state.display_config.serial = serial
+                    nav.app.add_output(f"Display Serial ID set to: {serial}")
+                    SaveStateAction(state).execute()
+                    nav.back()
+                else:
+                    nav.app.add_output(f"No display found for serial: {serial}")
+        threading.Thread(target=_run, daemon=True).start()
 
     def run_betterdisplays_sh():
         nav.app.add_output("If you want to add a license for BetterDisplays,")

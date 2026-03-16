@@ -26,7 +26,6 @@ class SaveStateAction:
         }
         with open(self.file_path, "w") as f:
             json.dump(data_to_save, f, indent=4)
-        print("Configurations saved.")
 
 class LoadStateAction:
     def __init__(self, state, file_path=STATE_FILE_PATH):
