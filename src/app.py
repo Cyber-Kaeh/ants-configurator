@@ -13,7 +13,7 @@ from src.ascii_art import ASCII_ART
 from src.models import DisplayConfig, DockConfig, IntegralConfig, VCConfig
 from src.actions import SaveStateAction, LoadStateAction, DeleteConfigAction, ToggleTTMenuAction, WriteDefaultsAction, RunIntegralSerialAction, RunCommandAction, AddCrontabEntryAction, ClearConfigAction
 
-SCRIPTS_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "/scripts"))
+SCRIPTS_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "scripts"))
 LOCAL_SCRIPTS_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "/Local/scripts"))
 LOCAL_SERIAL_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "/Local/scripts/serial"))
 T1VAPPS_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "/Users/t1user/T1VApps"))
