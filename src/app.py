@@ -379,7 +379,6 @@ def build_app():
             set_display_serial_crontab()
         nav.back()
 
-    @to_panel
     def get_display_serial_id(choice):
         def _run():
             result = subprocess.run(['ls /dev/tty.usb*'], shell=True, capture_output=True, text=True)
