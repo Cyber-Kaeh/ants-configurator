@@ -371,7 +371,7 @@ def build_app():
         serial = state.display_config.serial
         state.display_config.model = model
         SaveStateAction(state).execute()
-        module = importlib.import_module(f"scripts.{model}")
+        module = importlib.import_module(f"src.scripts.{model}")
         module.configure(serial)
         displays_list = ["AvocorH20", "AvocorF50", "AvocorG60"]
         if model in displays_list:
