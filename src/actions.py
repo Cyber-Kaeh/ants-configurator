@@ -183,8 +183,10 @@ class RunIntegralSerialAction:
             print(result.stdout)
         else:
             print(f"Error: {self.command} command failed with return code {result.returncode}")
-            print("Error Output:")
-            print(result.stderr)
+            if result.stdout:
+                print(result.stdout)
+            if result.stderr:
+                print(result.stderr)
 
 
 class RunScriptAction:

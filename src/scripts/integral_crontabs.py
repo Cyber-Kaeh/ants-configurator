@@ -1,0 +1,18 @@
+serial="xxx"
+
+print("Standard Mirror EDID")
+print(" ")
+print("# Verifies i/o resolutions of Integral")
+print(f"@reboot /bin/sleep 95; python /Local/scripts/integralStatus.py --serial /dev/tty.usbserial-{serial} --rx0 \"4K60 444\" --tx0 \"4K60 444\" --input \"bot\" --fix --notify --reboot")
+print(" ")
+print(" ")
+print("Dock")
+print(" ")
+print("# Verifies i/o resolutions of Dock Integral")
+print(f"@reboot /bin/sleep 95; python /Local/scripts/integralStatus.py --serial /dev/tty.usbserial-{serial} --rx0 \"1080P60 444\" --input \"bot\" --fix --notify --reboot")
+print(" ")
+print(" ")
+print("Matrix Mode")
+print(" ")
+print("# Verifies i/o resolutions of Dual Integral")
+print(f"@reboot /bin/sleep 95; python /Local/scripts/integralStatus.py --serial /dev/tty.usbserial-{serial} --rx0 \"4K60 444\" --rx1 \"4K60 444\" --input \"thru\" --notify --reboot")

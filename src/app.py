@@ -264,7 +264,7 @@ def build_app():
 
     def select_integral(callback):
         if not state.integral_config.integrals:
-            nav.app.set_message("Error: No Integral serial ID set. Run '1) Find Integral Serial #' first.")
+            nav.app.set_message("Error: No Integral serial ID set. Run '> Find Integral Serial #' first.")
             return
         if len(state.integral_config.integrals) == 1:
             key = next(iter(state.integral_config.integrals))
@@ -397,7 +397,7 @@ def build_app():
                     state.display_config.serial = serial
                     nav.app.add_output(f"Display Serial ID set to: {serial}")
                     SaveStateAction(state).execute()
-                    nav.back()
+                    nav.app._loop.call_soon_threadsafe(nav.back)
                 else:
                     nav.app.add_output(f"No display found for serial: {serial}")
         threading.Thread(target=_run, daemon=True).start()
@@ -594,7 +594,7 @@ def build_app():
         "3": ("Reboot Integral", lambda: reboot_integral()),
         "4": ("Set 4K Mirror", lambda: set_4k_mirror()),
         "5": ("Example crontabs", to_panel(lambda: RunCommandAction([
-            os.path.join(SCRIPTS_DIR, "integral_crontabs.sh"),
+            os.path.join(SCRIPTS_DIR, "integral_crontabs.py"),
             state.integral_config.integrals[next(iter(state.integral_config.integrals))]['serial']
             if state.integral_config.integrals else 'XXXXXXXX'
         ]).execute())),
