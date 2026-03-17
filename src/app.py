@@ -13,6 +13,7 @@ from prompt_toolkit.completion import WordCompleter
 from src.ascii_art import ASCII_ART
 from src.models import DisplayConfig, DockConfig, IntegralConfig, VCConfig
 from src.actions import SaveStateAction, LoadStateAction, DeleteConfigAction, ToggleTTMenuAction, WriteDefaultsAction, RunIntegralSerialAction, RunCommandAction, AddCrontabEntryAction, ClearConfigAction
+from src.scripts import integral_crontabs
 
 SCRIPTS_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "scripts"))
 LOCAL_SCRIPTS_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "/Local/scripts"))
@@ -593,11 +594,10 @@ def build_app():
         "2": ("Interrogate Integral", lambda: interrogate_integral()),
         "3": ("Reboot Integral", lambda: reboot_integral()),
         "4": ("Set 4K Mirror", lambda: set_4k_mirror()),
-        "5": ("Example crontabs", to_panel(lambda: RunCommandAction([
-            os.path.join(SCRIPTS_DIR, "integral_crontabs.py"),
-            state.integral_config.integrals[next(iter(state.integral_config.integrals))]['serial']
-            if state.integral_config.integrals else 'XXXXXXXX'
-        ]).execute())),
+        "5": ("Example crontabs", to_panel(lambda: integral_crontabs.print_crontab_entries(
+        state.integral_config.integrals[next(iter(state.integral_config.integrals))]['serial']
+        if state.integral_config.integrals else 'XXXXXXXX'
+    ))),
         "6": ("Custom Command", lambda: custom_integral_command()),
     })
 

@@ -1,33 +1,59 @@
+"""Avocor H20 display configuration module"""
 import subprocess
 import os
-from pathlib import Path
 
-def configure(serial: str) -> None:
-    """Configure Avocor E50 display defaults."""
+
+def configure(serial: str) -> bool:
+    """
+    Configure Avocor H20 display defaults.
+    
+    Args:
+        serial: The USB serial number for the display
+        
+    Returns:
+        bool: True if configuration succeeded, False otherwise
+    """
+    print(f"Configuring Avocor H20 with serial: {serial}")
     
     # Find the USB serial device
-    device = f"/dev/tty.usbserial-{serial}"
-    if not os.path.exists(device):
-        raise FileNotFoundError(f"Serial device not found: {device}")
+    device_path = f"/dev/tty.usbserial-{serial}"
     
-    # Define all the defaults to write
+    # Check if device exists
+    if not os.path.exists(device_path):
+        print(f"⚠️  Warning: Serial device not found: {device_path}")
+    
+    # Define all the defaults to write for H20
     defaults_config = {
         "Name": "Main 4K Avocor",
         "ExpectedPowerON": "Power On",
-        "ExpectedSignal": "Signal Present",
-        "BacklightOff": f"/usr/local/bin/python /Local/scripts/serial/AvocorG60.py {device} BacklightOff",
-        "BacklightOn": f"/usr/local/bin/python /Local/scripts/serial/AvocorG60.py {device} BacklightOn",
-        "GetBacklight": f"/usr/local/bin/python /Local/scripts/serial/AvocorG60.py {device} GetBackLight",
-        "GetPower": f"/usr/local/bin/python /Local/scripts/serial/AvocorG60.py {device} GetPower",
-        "GetSignal": f"/usr/local/bin/python /Local/scripts/serial/AvocorG60.py {device} GetSignalv2",
-        "GetFirmware": f"/usr/local/bin/python /Local/scripts/serial/AvocorG60.py {device} GetFirmware",
-        "SetInput": f"/usr/local/bin/python /Local/scripts/serial/AvocorG60.py {device} HDMI2",
-        "LockKeys": f"/usr/local/bin/python /Local/scripts/serial/AvocorG60.py {device} LockKeys",
-        "UnlockKeys": f"/usr/local/bin/python /Local/scripts/serial/AvocorG60.py {device} UnlockKeys",
+        "GetPower": f"/usr/local/bin/python /Local/scripts/serial/AvocorH20.py {device_path} GetPower",
+        "PowerOn": f"/usr/local/bin/python /Local/scripts/serial/AvocorH20.py {device_path} PowerOn",
+        "PowerOff": f"/usr/local/bin/python /Local/scripts/serial/AvocorH20.py {device_path} PowerOff",
+        "GetButtonLock": f"/usr/local/bin/python /Local/scripts/serial/AvocorH20.py {device_path} GetButtonLock",
+        "ButtonLockOff": f"/usr/local/bin/python /Local/scripts/serial/AvocorH20.py {device_path} ButtonLockOff",
+        "ButtonLockOn": f"/usr/local/bin/python /Local/scripts/serial/AvocorH20.py {device_path} ButtonLockOn",
+        "GetMute": f"/usr/local/bin/python /Local/scripts/serial/AvocorH20.py {device_path} GetMute",
+        "GetVolume": f"/usr/local/bin/python /Local/scripts/serial/AvocorH20.py {device_path} GetVolume",
+        "HDMI1": f"/usr/local/bin/python /Local/scripts/serial/AvocorH20.py {device_path} HDMI1",
+        "HDMI2": f"/usr/local/bin/python /Local/scripts/serial/AvocorH20.py {device_path} HDMI2",
+        "HDMI3": f"/usr/local/bin/python /Local/scripts/serial/AvocorH20.py {device_path} HDMI3",
+        "HomeScreen": f"/usr/local/bin/python /Local/scripts/serial/AvocorH20.py {device_path} HomeScreen",
+        "Reset": f"/usr/local/bin/python /Local/scripts/serial/AvocorH20.py {device_path} Reset",
     }
     
-    for key, value in defaults_config.items():
-        subprocess.run([
-            "defaults", "write", "com.t1visions.SerialScripts",
-            "Display 1", "-dict-add", key, value
-        ], check=True)
+    try:
+        for key, value in defaults_config.items():
+            result = subprocess.run([
+                "defaults", "write", "com.t1visions.SerialScripts",
+                "Display 1", "-dict-add", key, value
+            ], check=True, capture_output=True, text=True)
+            print(f"  ✓ Set {key}")
+        
+        print("✅ Avocor H20 configuration complete!")
+        return True
+        
+    except subprocess.CalledProcessError as e:
+        print(f"❌ Configuration failed: {e}")
+        if e.stderr:
+            print(f"Error details: {e.stderr}")
+        return False

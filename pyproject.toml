@@ -25,4 +25,4 @@ dependencies = [
 ants-configurator = "src.__main__:main"
 
 [tool.setuptools]
-packages = ["src"]
+packages = ["src", "src.scripts"]
