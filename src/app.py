@@ -398,7 +398,7 @@ def build_app():
                     state.display_config.serial = serial
                     nav.app.add_output(f"Display Serial ID set to: {serial}")
                     SaveStateAction(state).execute()
-                    nav.app._loop.call_soon_threadsafe(nav.back)
+                    # nav.app._loop.call_soon_threadsafe(nav.back)
                 else:
                     nav.app.add_output(f"No display found for serial: {serial}")
         threading.Thread(target=_run, daemon=True).start()
