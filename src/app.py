@@ -444,6 +444,8 @@ def build_app():
             if not matches:
                 nav.app.set_message(f"No matching serial found for {choice}")
                 return
+            found = False
+
             for serial in matches:
                 nav.app.add_output(f"Checking serial {serial}...")
                 script_path = os.path.join(LOCAL_SERIAL_DIR, f"{choice}.py")
@@ -453,11 +455,20 @@ def build_app():
                 )
                 if "Display is ON" in serial_result.stdout:
                     state.display_config.serial = serial
-                    nav.app.add_output(f"Display Serial ID set to: {serial}")
+                    nav.app.add_output(f"Display Serial ID found: {serial}")
                     SaveStateAction(state).execute()
-                    # nav.app._loop.call_soon_threadsafe(nav.back)
+                    nav.app.set_message(f"Display Serial ID set to: {serial}")
+                    found = True
+                    break
                 else:
                     nav.app.add_output(f"No display found for serial: {serial}")
+
+            if nav.app:
+                if found:
+                    nav.app._loop.call_soon_threadsafe(nav.back)
+                else:
+                    nav.app.set_message(f"Could not find a display for {choice}")
+
         threading.Thread(target=_run, daemon=True).start()
 
     def run_betterdisplays_sh():
