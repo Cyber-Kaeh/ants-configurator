@@ -164,8 +164,8 @@ def build_app():
         if include_pan_gesture:
             WriteDefaultsAction("TTMenu", "panGestureFactor", "2").execute()
         WriteDefaultsAction("TTMenu", "frameScaling", option).execute()
-        nav.app.set_message(f"Frame scaling set to {option}")        
         nav.back()
+        nav.app.set_message(f"Frame scaling set to {option}")
 
     @to_panel
     def set_touch_display_resolution(option):
@@ -174,14 +174,15 @@ def build_app():
                 if value is None:
                     return
                 to_panel(lambda: WriteDefaultsAction("TTMenu", "touchDisplayResolution", value).execute())()
-                nav.app.set_message(f"Touch display resolution set to {value}")
                 nav.back()
+                nav.app.set_message(f"Touch display resolution set to {value}")
             if nav.app:
                 custom_res =nav.app.request_input("Enter custom touchDisplayResolution value:", _on_input)
                 to_panel(f"Touch display resolution set to {custom_res}")
         else:
             to_panel(lambda: WriteDefaultsAction("TTMenu", "touchDisplayResolution", option).execute())()
             nav.back()
+            nav.app.set_message(f"Touch display resolution set to {option}")
 
     @to_panel
     def set_uppd_defaults():
