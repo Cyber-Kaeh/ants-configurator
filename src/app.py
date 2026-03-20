@@ -164,6 +164,7 @@ def build_app():
         if include_pan_gesture:
             WriteDefaultsAction("TTMenu", "panGestureFactor", "2").execute()
         WriteDefaultsAction("TTMenu", "frameScaling", option).execute()
+        nav.app.set_message(f"Frame scaling set to {option}")        
         nav.back()
 
     @to_panel
@@ -173,9 +174,11 @@ def build_app():
                 if value is None:
                     return
                 to_panel(lambda: WriteDefaultsAction("TTMenu", "touchDisplayResolution", value).execute())()
+                nav.app.set_message(f"Touch display resolution set to {value}")
                 nav.back()
             if nav.app:
-                nav.app.request_input("Enter custom touchDisplayResolution value:", _on_input)
+                custom_res =nav.app.request_input("Enter custom touchDisplayResolution value:", _on_input)
+                to_panel(f"Touch display resolution set to {custom_res}")
         else:
             to_panel(lambda: WriteDefaultsAction("TTMenu", "touchDisplayResolution", option).execute())()
             nav.back()
@@ -283,6 +286,12 @@ def build_app():
                 else:
                     nav.app.add_output("Invalid selection.")
             nav.app.request_input("Enter the number of the Integral:", _on_choice)
+
+    def set_integral_serial_crontab():
+        def _on_selected(key):
+            serial = state.integral_config.integrals[key]['serial']
+            nav.app.add_output(f"Enter crontab comment for Integral with Serial ID: {serial}")
+            
 
     def custom_integral_command():
         def _on_selected(key):
@@ -555,11 +564,12 @@ def build_app():
     other_defaults_menu.commands.update({
         "1": ("Magewell Defaults", lambda: set_magewell_defaults()),
         "2": ("Set Max Browsers", lambda: nav.push(max_browsers_menu)),
-        "3": ("Set External Headphones", to_panel(lambda: RunCommandAction(
+        "3": ("Set Default Web Browser", to_panel(lambda: WriteDefaultsAction("TTMenu", "webViewDefaultURL", "http://www.bing.com/").execute())),
+        "4": ("Set External Headphones", to_panel(lambda: RunCommandAction(
             [os.path.join(LOCAL_SCRIPTS_DIR, "AudioSwitcher"), "-s", "External Headphones"]).execute())),
-        "4": ("Enable API Control", lambda: enable_api_server()),
-        "5": ("Enable Multisite", lambda: nav.push(multisite_menu)),
-        "6": ("Enable Kiosk Mode", to_panel(lambda: RunCommandAction(
+        "5": ("Enable API Control", lambda: enable_api_server()),
+        "6": ("Enable Multisite", lambda: nav.push(multisite_menu)),
+        "7": ("Enable Kiosk Mode", to_panel(lambda: RunCommandAction(
             ["defaults", "delete", "com.t1visions.TTMenu", "DisableKiosk"]).execute())),
     })
 
@@ -594,6 +604,7 @@ def build_app():
         "2": ("Interrogate Integral", lambda: interrogate_integral()),
         "3": ("Reboot Integral", lambda: reboot_integral()),
         "4": ("Set 4K Mirror", lambda: set_4k_mirror()),
+        "5": ("Set crontabs", lambda: set_integral_serial_crontab()),
         "5": ("Example crontabs", to_panel(lambda: integral_crontabs.print_crontab_entries(
         state.integral_config.integrals[next(iter(state.integral_config.integrals))]['serial']
         if state.integral_config.integrals else 'XXXXXXXX'
