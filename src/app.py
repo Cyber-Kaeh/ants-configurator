@@ -330,17 +330,23 @@ def build_app():
         def _on_selected(key):
             serial = state.integral_config.integrals[key]['serial']
             nav.app.add_output(f"Setting 4K mirror for Serial ID: {serial}")
+            nav.app.start_spinner("Setting 4K mirror...")
             def _run():
-                RunIntegralSerialAction(serial, "setScalingNone").execute()
-                RunIntegralSerialAction(serial, "reboot").execute()
-            to_panel(_run)()
+                to_panel(lambda: RunIntegralSerialAction(serial, "setScalingNone").execute())()
+                to_panel(lambda: RunIntegralSerialAction(serial, "reboot").execute())()
+                nav.app.stop_spinner("4K mirror set.")
+            threading.Thread(target=_run, daemon=True).start()
         select_integral(_on_selected)
 
     def reboot_integral():
         def _on_selected(key):
             serial = state.integral_config.integrals[key]['serial']
             nav.app.add_output(f"Rebooting Integral with Serial ID: {serial}")
-            to_panel(lambda: RunIntegralSerialAction(serial, "reboot").execute())()
+            nav.app.start_spinner("Rebooting Integral...")
+            def _run():
+                to_panel(lambda: RunIntegralSerialAction(serial, "reboot").execute())()
+                nav.app.stop_spinner("Reboot command sent.")
+            threading.Thread(target=_run, daemon=True).start()
         select_integral(_on_selected)
 
     def interrogate_integral():
@@ -348,12 +354,15 @@ def build_app():
             serial = state.integral_config.integrals[key]['serial']
             nav.app.add_output(f"Interrogating Integral with Serial ID: {serial}")
             nav.app.add_output("Starting interrogation (be patient, ~1 minute)...")
+            nav.app.start_spinner("Interrogating Integral...")
             script_path = os.path.join(LOCAL_SCRIPTS_DIR, "integralStatus.py")
+            def _on_done(rc):
+                nav.app.stop_spinner(
+                    "Interrogate complete." if rc == 0 else f"Interrogate failed (exit code {rc})."
+                )
             run_streaming(
                 [sys.executable, script_path, "--serial", f"/dev/tty.usbserial-{serial}", "--interrogate"],
-                on_done=lambda rc: nav.app.add_output(
-                    "Interrogation complete." if rc == 0 else f"Interrogation failed (exit code {rc})."
-                ),
+                on_done=_on_done,
             )
         select_integral(_on_selected)
 
@@ -385,9 +394,11 @@ def build_app():
 
     def get_integral_serial_id():
         def _run():
+            nav.app.start_spinner("Scanning for Integral serial devices...")
             result = subprocess.run(['ls /dev/tty.usb*'], shell=True, capture_output=True, text=True)
             matches = re.findall(r'/dev/tty\.usbserial-([A-Za-z0-9]+)', result.stdout)
             if not matches:
+                nav.app.stop_spinner()
                 nav.app.set_message("No serial USB found.")
                 return
             nav.app.add_output(f"Found {len(matches)} serial device(s): {', '.join(matches)}")
@@ -409,9 +420,9 @@ def build_app():
                     nav.app.add_output(f"Serial {serial}: not an Integral (no HdFury response)")
             state.integral_config.integrals = integrals
             if not integrals:
-                nav.app.set_message("No Integrals found.")
+                nav.app.stop_spinner("No Integrals found.")
             else:
-                nav.app.add_output(f"Done. Found {len(integrals)} Integral(s).")
+                nav.app.stop_spinner(f"Done. Found {len(integrals)} Integral(s).")
         threading.Thread(target=_run, daemon=True).start()
 
     @to_panel
@@ -424,9 +435,15 @@ def build_app():
     @to_panel
     def set_display_serial_defaults(model):
         if not state.display_config.serial:
-            nav.app.set_message("No display serial found, run 1) Find USB Serial #.")
+            nav.app.set_message("No display serial found, run > Find USB Serial #.")
             return
         serial = state.display_config.serial
+        device_path = f"/dev/tty.usbserial-{serial}"
+        if not os.path.exists(device_path):
+            nav.app.set_message(f"Serial device not connected: {device_path}")
+            print(f"❌ Aborted: Serial device not found: {device_path}")
+            print("Run '> Find USB Serial #' to update the serial ID.")
+            return
         state.display_config.model = model
         SaveStateAction(state).execute()
         module = importlib.import_module(f"src.scripts.{model}")
@@ -439,10 +456,11 @@ def build_app():
 
     def get_display_serial_id(choice):
         def _run():
+            nav.app.start_spinner(f"Scanning for {choice} display serial...")
             result = subprocess.run(['ls /dev/tty.usb*'], shell=True, capture_output=True, text=True)
             matches = re.findall(r'/dev/tty\.usbserial-([A-Za-z0-9]+)', result.stdout)
             if not matches:
-                nav.app.set_message(f"No matching serial found for {choice}")
+                nav.app.stop_spinner(f"No matching serial found for {choice}")
                 return
             found = False
 
@@ -465,9 +483,10 @@ def build_app():
 
             if nav.app:
                 if found:
+                    nav.app.stop_spinner(f"Display Serial ID set to: {state.display_config.serial}")
                     nav.app._loop.call_soon_threadsafe(nav.back)
                 else:
-                    nav.app.set_message(f"Could not find a display for {choice}")
+                    nav.app.stop_spinner(f"Could not find a display for {choice}")
 
         threading.Thread(target=_run, daemon=True).start()
 
@@ -566,20 +585,17 @@ def build_app():
 
     def enable_multisite_enterprise():
         to_panel(lambda: WriteDefaultsAction("TTMenu", "thinkHubMultiSite", "1").execute())()
-        def _on_confirm(response):
-            if response is None or response.lower() not in ("y", "yes"):
+        def _on_ip(ip):
+            if ip is None or not ip.strip():
+                nav.app.set_message("Multisite enabled. No relay IP set.")
                 return
-            def _on_ip(ip):
-                if ip is None:
-                    return
-                def _writes():
-                    WriteDefaultsAction("TTMenu", "netMessengerHostName", ip).execute()
-                    WriteDefaultsAction("TTMenu", "janusAddress", f"ws://{ip}:8188").execute()
-                to_panel(_writes)()
-            if nav.app:
-                nav.app.request_input("Enter the IP address for the Multisite Relay:", _on_ip)
+            def _writes():
+                WriteDefaultsAction("TTMenu", "netMessengerHostName", ip.strip()).execute()
+                WriteDefaultsAction("TTMenu", "janusAddress", f"ws://{ip.strip()}:8188").execute()
+            to_panel(_writes)()
+            nav.app.set_message("Multisite enterprise configured.")
         if nav.app:
-            nav.app.request_input("Set IP for Multisite Relay? (y/N):", _on_confirm)
+            nav.app.request_input("Enter Multisite Relay IP ([Enter] to skip):", _on_ip)
 
     # Initialize menus and sub-menus
     main_menu = Menu("Main Menu", {}, startup_art=ASCII_ART)

@@ -1,5 +1,6 @@
 import threading
 import asyncio
+import time
 from prompt_toolkit import Application
 from prompt_toolkit.document import Document
 from prompt_toolkit.formatted_text import FormattedText, HTML
@@ -50,6 +51,10 @@ class MenuApp:
         self._input_callback = None
         self._message = ""
         self._loop = None  # Set in run() for thread-safe updates
+
+        self._spinner_active = False
+        self._spinner_thread: threading.Thread | None = None
+        self._spinner_text = ""
 
         self._text_area = TextArea(
             multiline=False,
@@ -285,6 +290,38 @@ class MenuApp:
             # terminal receives native mouse events (click-drag selection, copy).
             mouse_support=~in_output,
         )
+
+    _SPINNER_FRAMES = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏']
+
+    def start_spinner(self, text: str = "Working..."):
+        """Show an animated spinner in the message bar. Call stop_spinner() when done."""
+        self._spinner_active = True
+        self._spinner_text = text
+
+        def _spin():
+            i = 0
+            while self._spinner_active:
+                frame = self._SPINNER_FRAMES[i % len(self._SPINNER_FRAMES)]
+                self._set_message_impl_threadsafe(f"{frame}  {self._spinner_text}")
+                time.sleep(0.08)
+                i += 1
+
+        self._spinner_thread = threading.Thread(target=_spin, daemon=True)
+        self._spinner_thread.start()
+
+    def stop_spinner(self, done_text: str = ""):
+        """Stop the spinner and optionally show a completion message."""
+        self._spinner_active = False
+        if self._spinner_thread:
+            self._spinner_thread.join(timeout=0.5)
+            self._spinner_thread = None
+        self.set_message(done_text)
+
+    def _set_message_impl_threadsafe(self, text: str):
+        if self._loop:
+            self._loop.call_soon_threadsafe(self._set_message_impl, text)
+        else:
+            self._set_message_impl(text)
 
     def request_input(self, prompt_text, callback, completer=None):
         """Show the input panel. callback(value) on Enter, callback(None) on Escape."""
