@@ -335,6 +335,32 @@ def build_app():
             )
         select_integral(_on_selected)
 
+    def set_integral_serial_crontab():
+        def _on_selected(key):
+            serial = state.integral_config.integrals[key]['serial']
+            entries = integral_crontabs.generate_crontab_entries(serial)
+
+            integral_crontab_type_menu = Menu("Select Crontab Type", {})
+
+            def make_action(entry_key):
+                def _action():
+                    entry = entries[entry_key]
+                    def _run():
+                        AddCrontabEntryAction(entry['command'], comment=entry['description']).execute()
+                    to_panel(_run)()
+                    nav.back()
+                    nav.app.set_message("Crontab entry added successfully.")
+                return _action
+
+            integral_crontab_type_menu.commands.update({
+                "1": (entries['standard_mirror']['description'], make_action('standard_mirror')),
+                "2": (entries['dock']['description'], make_action('dock')),
+                "3": (entries['matrix_mode']['description'], make_action('matrix_mode')),
+            })
+            nav.push(integral_crontab_type_menu)
+
+        select_integral(_on_selected)
+
     def get_integral_serial_id():
         def _run():
             result = subprocess.run(['ls /dev/tty.usb*'], shell=True, capture_output=True, text=True)

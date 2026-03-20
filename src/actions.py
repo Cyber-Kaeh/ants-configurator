@@ -162,7 +162,8 @@ class AddCrontabEntryAction:
         if self.reboot:
             job.every_reboot()
         if self.comment:
-            job.set_comment(self.comment)
+            job_idx = cron.lines.index(job)
+            cron.lines.insert(job_idx, f'# {self.comment}')
 
         cron.write()
         print(f"Added crontab entry: '{self.command[:60]}'")
