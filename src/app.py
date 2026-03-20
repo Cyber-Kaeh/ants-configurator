@@ -290,8 +290,30 @@ def build_app():
     def set_integral_serial_crontab():
         def _on_selected(key):
             serial = state.integral_config.integrals[key]['serial']
-            nav.app.add_output(f"Enter crontab comment for Integral with Serial ID: {serial}")
-            
+            entries = integral_crontabs.generate_crontab_entries(serial)
+
+            integral_crontab_type_menu = Menu("Select Crontab Type", {})
+
+            def make_action(entry_key):
+                def _action():
+                    entry = entries[entry_key]
+                    def _run():
+                        AddCrontabEntryAction(entry['command'], comment=entry['description']).execute()
+                    to_panel(_run)()
+                    nav.back()
+                    nav.app.set_message("Crontab entry added successfully.")
+                return _action
+
+            integral_crontab_type_menu.commands.update({
+                "1": (entries['standard_mirror']['description'], make_action('standard_mirror')),
+                "2": (entries['dock']['description'], make_action('dock')),
+                "3": (entries['matrix_mode']['description'], make_action('matrix_mode')),
+            })
+            nav.push(integral_crontab_type_menu)
+
+        select_integral(_on_selected)
+
+
 
     def custom_integral_command():
         def _on_selected(key):
@@ -630,12 +652,7 @@ def build_app():
         "2": ("Interrogate Integral", lambda: interrogate_integral()),
         "3": ("Reboot Integral", lambda: reboot_integral()),
         "4": ("Set 4K Mirror", lambda: set_4k_mirror()),
-        "5": ("Set crontabs", lambda: set_integral_serial_crontab()),
-        "5": ("Example crontabs", to_panel(lambda: integral_crontabs.print_crontab_entries(
-        state.integral_config.integrals[next(iter(state.integral_config.integrals))]['serial']
-        if state.integral_config.integrals else 'XXXXXXXX'
-    ))),
-        "6": ("Custom Command", lambda: custom_integral_command()),
+        "5": ("Set Integral Crontab", lambda: set_integral_serial_crontab()),
     })
 
     display_serial_menu.commands.update({
