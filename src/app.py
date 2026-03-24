@@ -486,6 +486,7 @@ def build_app():
                 if found:
                     nav.app.stop_spinner(f"Display Serial ID set to: {state.display_config.serial}")
                     nav.app._loop.call_soon_threadsafe(nav.back)
+                    nav.app.set_message(f"Display Serial ID set to: {state.display_config.serial}")
                 else:
                     nav.app.stop_spinner(f"Could not find a display for {choice}")
 
