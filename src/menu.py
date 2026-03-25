@@ -191,6 +191,13 @@ class MenuApp:
             if in_output():
                 return FormattedText([("class:toolbar", "  [Output]  ↑↓ scroll  drag select  Tab/Esc exit output")])
 
+            if self._input_active:
+                return FormattedText([
+                    ("class:toolbar", "  Enter submit  "),
+                    ("class:toolbar-key", " Esc "),
+                    ("class:toolbar", " cancel"),
+                ])
+
             tokens = [("class:toolbar", "  ↑↓ navigate  Enter select  ")]
             for key, desc, callback in self._toolbar_actions:
                 tokens.append(("class:toolbar-key", f" {key} ", make_handler(callback)))
@@ -206,20 +213,7 @@ class MenuApp:
         )
 
         right_content = HSplit([
-            # Input mode
-            ConditionalContainer(
-                HSplit([
-                    Window(
-                        FormattedTextControl(lambda: f"  {self._input_prompt_text}"),
-                        dont_extend_height=True,
-                        style="class:input-prompt",
-                    ),
-                    self._text_area,
-                    Window(),  # expands to fill frame height, keeping toolbar pinned
-                ]),
-                filter=in_input,
-            ),
-            # Output placeholder (no lines yet)
+            # Output placeholder (no lines yet, not in input)
             ConditionalContainer(
                 Window(
                     FormattedTextControl(
@@ -228,10 +222,27 @@ class MenuApp:
                 ),
                 filter=not_in_input & ~has_output,
             ),
-            # Output panel (BufferControl: scrollbar + text selection work)
+            # Output panel — visible whenever there are lines, including during input
             ConditionalContainer(
                 self._output_area,
-                filter=not_in_input & has_output,
+                filter=has_output,
+            ),
+            # Input prompt + field pinned at the bottom
+            ConditionalContainer(
+                HSplit([
+                    Window(
+                        FormattedTextControl(lambda: f"  {self._input_prompt_text}"),
+                        dont_extend_height=True,
+                        style="class:input-prompt",
+                    ),
+                    self._text_area,
+                ]),
+                filter=in_input,
+            ),
+            # Expander keeps toolbar pinned when in input with no output
+            ConditionalContainer(
+                Window(),
+                filter=in_input & ~has_output,
             ),
         ])
 
@@ -373,6 +384,9 @@ class MenuApp:
         self._output_lines.clear()
         self._output_area.buffer.set_document(Document(""), bypass_readonly=True)
         self._message = ""
+        self._input_active = False
+        self._input_callback = None
+        self._text_area.text = ""
         self._app.invalidate()
 
     def run(self):
