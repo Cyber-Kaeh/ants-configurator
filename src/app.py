@@ -131,15 +131,8 @@ def build_app():
         if nav.app:
             nav.app.request_input("Enter custom resolution (e.g., 3840x2160):", _on_input, completer=res_completer)
 
-    @to_panel
     def set_screen_count():
-        def _on_input(value):
-            if value is None:
-                return
-            try:
-                count = int(value)
-            except ValueError:
-                return
+        def _apply_count(count):
             state.display_config.count = count
             def _writes():
                 print(f"Screen count set to {count}")
@@ -149,8 +142,35 @@ def build_app():
                     WriteDefaultsAction("TTMenu", "thinkHubThickLineDrawWidth", "20").execute()
                     state.vc_config.multi_display = True
             to_panel(_writes)()
-        if nav.app:
+
+        def _custom_count():
+            def _on_input(value):
+                if value is None:
+                    return
+                try:
+                    count = int(value)
+                except ValueError:
+                    nav.app.set_message("Invalid number.")
+                    return
+                _apply_count(count)
+                nav.back()
             nav.app.request_input("Enter number of displays:", _on_input)
+
+        def make_set_count(n):
+            def _action():
+                _apply_count(n)
+                nav.back()
+                nav.app.set_message(f"Screen count set to {n}.")
+            return _action
+
+        count_menu = Menu("Select Screen Count", {
+            "1": ("1 display",      make_set_count(1)),
+            "2": ("2 displays",     make_set_count(2)),
+            "3": ("3 displays",     make_set_count(3)),
+            "4": ("4 displays",     make_set_count(4)),
+            "5": ("More than 4...", _custom_count),
+        })
+        nav.push(count_menu)
 
     @to_panel
     def set_screen_size(option):
