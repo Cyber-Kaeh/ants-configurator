@@ -32,19 +32,21 @@ STYLE = Style.from_dict({
 
 
 class Menu:
-    def __init__(self, title, commands, startup_art=None):
+    def __init__(self, title, commands, startup_art=None, show_back=True):
         self.title = title
         self.commands = commands
         self.startup_art = startup_art
+        self.show_back = show_back
 
 
 class MenuApp:
-    def __init__(self, extra_bindings=None, toolbar_actions=None):
+    def __init__(self, extra_bindings=None, toolbar_actions=None, back_action=None):
         self._current_menu = None
         self._selected_index = 0
         self._art = None
         self._output_lines: list[str] = []
 
+        self._back_action = back_action
         self._toolbar_actions = toolbar_actions or []
         self._input_active = False
         self._input_prompt_text = ""
@@ -83,16 +85,24 @@ class MenuApp:
         # Menu navigation only fires when neither input nor output panel is focused.
         menu_active = not_in_input & ~in_output
 
+        def _menu_size():
+            if not self._current_menu:
+                return 0
+            n = len(self._current_menu.commands)
+            if self._back_action and self._current_menu.show_back:
+                n += 1
+            return n
+
         @kb.add("up", filter=menu_active)
         def _up(_event):
-            if self._current_menu:
-                n = len(self._current_menu.commands)
+            n = _menu_size()
+            if n:
                 self._selected_index = (self._selected_index - 1) % n
 
         @kb.add("down", filter=menu_active)
         def _down(_event):
-            if self._current_menu:
-                n = len(self._current_menu.commands)
+            n = _menu_size()
+            if n:
                 self._selected_index = (self._selected_index + 1) % n
 
         @kb.add("enter", filter=menu_active)
@@ -102,10 +112,20 @@ class MenuApp:
             keys = list(self._current_menu.commands.keys())
             if not keys:
                 return
+            if self._back_action and self._current_menu.show_back and self._selected_index == len(keys):
+                self._output_lines.clear()
+                self._output_area.buffer.set_document(Document(""), bypass_readonly=True)
+                self._back_action()
+                return
             _, action = self._current_menu.commands[keys[self._selected_index]]
             self._output_lines.clear()
             self._output_area.buffer.set_document(Document(""), bypass_readonly=True)
             action()
+
+        @kb.add("left", filter=menu_active)
+        def _left(_event):
+            if self._back_action and self._current_menu and self._current_menu.show_back:
+                self._back_action()
 
         @kb.add("enter", filter=in_input)
         def _input_submit(_event):
@@ -172,6 +192,19 @@ class MenuApp:
                 style = "class:menu-item.selected" if i == self._selected_index else "class:menu-item"
                 prefix = "  > " if i == self._selected_index else "    "
                 tokens.append((style, f"{prefix}{label}\n", make_click_handler(i, action)))
+
+            if self._back_action and self._current_menu.show_back:
+                back_idx = len(self._current_menu.commands)
+                def back_click_handler(mouse_event):
+                    from prompt_toolkit.mouse_events import MouseEventType
+                    if mouse_event.event_type == MouseEventType.MOUSE_UP:
+                        self._selected_index = back_idx
+                        self._app.layout.focus(self._menu_window)
+                        self._back_action()
+                style = "class:menu-item.selected" if self._selected_index == back_idx else "class:menu-item"
+                prefix = "  > " if self._selected_index == back_idx else "    "
+                tokens.append((style, f"{prefix}< Back\n", back_click_handler))
+
             return FormattedText(tokens)
 
         def get_message_bar():

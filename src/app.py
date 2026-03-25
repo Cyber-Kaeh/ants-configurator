@@ -620,7 +620,7 @@ def build_app():
             nav.app.request_input("Enter Multisite Relay IP ([Enter] to skip):", _on_ip)
 
     # Initialize menus and sub-menus
-    main_menu = Menu("Main Menu", {}, startup_art=ASCII_ART)
+    main_menu = Menu("Main Menu", {}, startup_art=ASCII_ART, show_back=False)
     display_config_menu = Menu("Display Configuration", {})
     resolution_menu = Menu("Resolution Menu", {})
     displays_menu = Menu("Displays Menu", {})
@@ -821,6 +821,7 @@ def build_app():
             ("t",  "toggle", lambda: to_panel(lambda: ToggleTTMenuAction().execute())()),
             ("qq", "quit",   exit_app),
         ],
+        back_action=nav.back,
     )
     nav.app = app
 
