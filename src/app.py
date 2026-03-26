@@ -477,14 +477,16 @@ def build_app():
 
     def get_display_serial_id(choice):
         def _run():
+            if not nav.app:
+                return
             nav.app.start_spinner(f"Scanning for {choice} display serial...")
             result = subprocess.run(['ls /dev/tty.usb*'], shell=True, capture_output=True, text=True)
             matches = re.findall(r'/dev/tty\.usbserial-([A-Za-z0-9]+)', result.stdout)
             if not matches:
                 nav.app.stop_spinner(f"No matching serial found for {choice}")
                 return
-            found = False
 
+            found_serial = None
             for serial in matches:
                 nav.app.add_output(f"Checking serial {serial}...")
                 script_path = os.path.join(LOCAL_SERIAL_DIR, f"{choice}.py")
@@ -493,22 +495,24 @@ def build_app():
                     capture_output=True, text=True
                 )
                 if "Display is ON" in serial_result.stdout:
-                    state.display_config.serial = serial
                     nav.app.add_output(f"Display Serial ID found: {serial}")
-                    SaveStateAction(state).execute()
-                    nav.app.set_message(f"Display Serial ID set to: {serial}")
-                    found = True
+                    found_serial = serial
                     break
                 else:
                     nav.app.add_output(f"No display found for serial: {serial}")
+                    nav.app.set_message("No Serial Display found.")
 
-            if nav.app:
-                if found:
-                    nav.app.stop_spinner(f"Display Serial ID set to: {state.display_config.serial}")
-                    nav.app._loop.call_soon_threadsafe(nav.back)
-                    nav.app.set_message(f"Display Serial ID set to: {state.display_config.serial}")
+            def _update_ui():
+                if found_serial:
+                    state.display_config.serial = found_serial
+                    SaveStateAction(state).execute()
+                    nav.app.stop_spinner(f"Display Serial ID set to: {found_serial}")
+                    nav.back()
+                    nav.app.set_message(f"Display Serial ID set to: {found_serial}")
                 else:
                     nav.app.stop_spinner(f"Could not find a display for {choice}")
+            
+            nav.app._loop.call_soon_threadsafe(_update_ui)
 
         threading.Thread(target=_run, daemon=True).start()
 

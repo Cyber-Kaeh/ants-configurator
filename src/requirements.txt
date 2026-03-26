@@ -1,4 +1,4 @@
-markdown-it-py==4.0.0
+markdown-it-py
 mdurl==0.1.2
 packaging==26.0
 pex==2.91.2
