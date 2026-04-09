@@ -193,7 +193,7 @@ def build_app():
             def _on_input(value):
                 if value is None:
                     return
-                to_panel(lambda: WriteDefaultsAction("TTMenu", "touchDisplayResolution", value).execute())()
+                # to_panel(lambda: WriteDefaultsAction("TTMenu", "touchDisplayResolution", value).execute())()
                 nav.back()
                 nav.app.set_message(f"Touch display resolution set to {value}")
             if nav.app:
