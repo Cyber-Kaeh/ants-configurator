@@ -611,6 +611,7 @@ def build_app():
 
     def enable_multisite_enterprise():
         to_panel(lambda: WriteDefaultsAction("TTMenu", "thinkHubMultiSite", "1").execute())()
+        to_panel(lambda: WriteDefaultsAction("TTMenu", "webRTCEnablePerformance", "1").execute())()
         def _on_ip(ip):
             if ip is None or not ip.strip():
                 nav.app.set_message("Multisite enabled. No relay IP set.")
@@ -618,6 +619,7 @@ def build_app():
             def _writes():
                 WriteDefaultsAction("TTMenu", "netMessengerHostName", ip.strip()).execute()
                 WriteDefaultsAction("TTMenu", "janusAddress", f"ws://{ip.strip()}:8188").execute()
+                WriteDefaultsAction("TTMenu", "AirConnectMPBAddress", f"ws://{ip.strip()}:8188").execute()
             to_panel(_writes)()
             nav.app.set_message("Multisite enterprise configured.")
         if nav.app:
