@@ -471,6 +471,7 @@ def build_app():
         module.configure(serial)
         displays_list = ["AvocorH20", "AvocorF50", "AvocorG60"]
         if model in displays_list:
+            WriteDefaultsAction("TTMenu", "HIDDisableIgnoreDeviceAddRemove", "1").execute()
             print("Adding crontab for displayMegaScript.py")
             set_display_serial_crontab()
         nav.back()
