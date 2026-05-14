@@ -27,7 +27,7 @@ def configure(serial: str) -> bool:
         "Name": "Main 4K Avocor",
         "ExpectedPowerON": "Power On",
         "ExpectedSignal": "Signal Present",
-        "GetSignal": f"/usr/local/bin/python /Local/scripts/serial/AvocorH20.py {device_path} GetSignal",
+        "GetSignal": f"/usr/local/bin/python /Local/scripts/serial/AvocorG60.py {device_path} GetSignalv2",
         "GetPower": f"/usr/local/bin/python /Local/scripts/serial/AvocorG60.py {device_path} GetPower",
         "PowerOn": f"/usr/local/bin/python /Local/scripts/serial/AvocorG60.py {device_path} PowerOn",
         "PowerOff": f"/usr/local/bin/python /Local/scripts/serial/AvocorG60.py {device_path} PowerOff",
