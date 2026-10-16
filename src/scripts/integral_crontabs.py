@@ -22,7 +22,7 @@ def generate_crontab_entries(serial: str) -> dict:
         },
         "matrix_mode": {
             "description": "Matrix Mode - Verifies i/o resolutions of Dual Integral",
-            "command": f"@reboot /bin/sleep 95; python /Local/scripts/integralStatus.py --serial /dev/tty.usbserial-{serial} --rx0 \"4K60 444\" --rx1 \"4K60 444\" --input \"thru\" --notify --reboot"
+            "command": f"@reboot /bin/sleep 95; python /Local/scripts/integralStatus.py --serial /dev/tty.usbserial-{serial} --rx0 \"4K60 444\" --rx1 \"4K60 444\" --input \"thru\" --fix --notify --reboot"
         }
     }
     return entries

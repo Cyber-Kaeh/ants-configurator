@@ -597,7 +597,7 @@ def build_app():
     @to_panel
     def enable_api_server():
         RunCommandAction(["cp", "/Local/scripts/externalCommand/com.t1v.externalCommandTelnetServer3.plist", "/Users/t1user/Library/LaunchAgents/"]).execute()
-        RunCommandAction(["launchctl", "load", "/Library/LaunchAgents/com.t1v.externalCommandTelnetServer3.plist"]).execute()
+        RunCommandAction(["launchctl", "load", "/Users/t1user/Library/LaunchAgents/com.t1v.externalCommandTelnetServer3.plist"]).execute()
 
     def enable_multisite_smb():
         def _on_input(value):

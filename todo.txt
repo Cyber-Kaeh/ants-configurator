@@ -1,3 +1,7 @@
+(UPDATE) Change values of max browsers. Remove the collaborate lite entry. Adjust to 10 and 25. Add a custom field.
+(UPDATE) Update or add a new entry for integral crontabs for MTR and/or a second integral as a 3rd display only
+(BUG) Make setting screen count and size save to allow setting VC. Probably a deeper bug in saved state
+(BUG/FEAT) Make setting things (like dock) idempotent
 (BUG)(testing) Software VC doesn't account for multi displays properly. Sets single
 display defaults (screenUpdateOnAllChanges) even after selecting 2 screens.
  - may have fixed with updated save state logic
