@@ -594,6 +594,18 @@ def build_app():
         WriteDefaultsAction("TTMenu", "webViewMaxClients", count).execute()
         nav.back()
 
+    def set_custom_max_browsers():
+        def _on_input(value):
+            if value is None:
+                return
+            value = value.strip()
+            if not value.isdigit() or int(value) < 1:
+                nav.app.set_message("Invalid number.")
+                return
+            set_max_browsers(str(int(value)))
+        if nav.app:
+            nav.app.request_input("Enter max number of browsers:", _on_input)
+
     @to_panel
     def enable_api_server():
         RunCommandAction(["cp", "/Local/scripts/externalCommand/com.t1v.externalCommandTelnetServer3.plist", "/Users/t1user/Library/LaunchAgents/"]).execute()
@@ -660,9 +672,10 @@ def build_app():
     })
 
     max_browsers_menu.commands.update({
-        "1": ("CollaboratOR Lite - 4", lambda: set_max_browsers("4")),
-        "2": ("CX-02 - 5", lambda: set_max_browsers("5")),
-        "3": ("CX-06/07 - 10", lambda: set_max_browsers("10")),
+        "1": ("Mini - 10", lambda: set_max_browsers("5")),
+        "2": ("Studio - 25", lambda: set_max_browsers("10")),
+        "3": ("CollaboratOR Lite - 4", lambda: set_max_browsers("4")),
+        "4": ("Custom", lambda: set_custom_max_browsers()),
     })
 
     other_defaults_menu.commands.update({

@@ -23,6 +23,10 @@ def generate_crontab_entries(serial: str) -> dict:
         "matrix_mode": {
             "description": "Matrix Mode - Verifies i/o resolutions of Dual Integral",
             "command": f"@reboot /bin/sleep 95; python /Local/scripts/integralStatus.py --serial /dev/tty.usbserial-{serial} --rx0 \"4K60 444\" --rx1 \"4K60 444\" --input \"thru\" --fix --notify --reboot"
+        },
+        "single_input": {
+            "description": "Single Input - Verifies i/o resolutions of Single Integral",
+            "command": f"@reboot /bin/sleep 95; python /Local/scripts/integralStatus.py --serial /dev/tty.usbserial-{serial} --rx0 \"4K60 444\" --input \"bot\" --fix --notify --reboot"
         }
     }
     return entries
@@ -55,6 +59,13 @@ def print_crontab_entries(serial: str = "xxx"):
     print(" ")
     print(f"# {entries['matrix_mode']['description']}")
     print(entries['matrix_mode']['command'])
+
+    print("Single Input")
+    print(" ")
+    print(f"# {entries['single_input']['description']}")
+    print(entries['single_input']['command'])
+    print(" ")
+    print(" ")
 
 
 if __name__ == "__main__":
