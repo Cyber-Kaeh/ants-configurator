@@ -12,7 +12,7 @@ from prompt_toolkit import prompt
 from prompt_toolkit.completion import WordCompleter
 from src.ascii_art import ASCII_ART
 from src.models import DisplayConfig, DockConfig, IntegralConfig, VCConfig
-from src.actions import SaveStateAction, LoadStateAction, DeleteConfigAction, ToggleTTMenuAction, WriteDefaultsAction, RunIntegralSerialAction, RunCommandAction, AddCrontabEntryAction, ClearConfigAction
+from src.actions import SaveStateAction, LoadStateAction, DeleteConfigAction, ToggleTTMenuAction, WriteDefaultsAction, RunIntegralSerialAction, RunCommandAction, AddCrontabEntryAction, ClearConfigAction, STATE_FILE_PATH
 from src.scripts import integral_crontabs
 
 SCRIPTS_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "scripts"))
@@ -96,20 +96,13 @@ def build_app():
         threading.Thread(target=_thread, daemon=True).start()
 
     def calculate_frame():
-        try:
-            res = state.display_config.size
-            count = state.display_config.count
-            if res is None or count is None:
-                nav.app.set_message("Screen size or count not set.")
-                return
-            width, height = map(int, res.split('x'))
-            total_width = width * count
-            state.display_config.height = height
-            state.display_config.placement = total_width
-            SaveStateAction(state).execute()
-            nav.app.set_message(f"Calculated frame size: {total_width}x{height}")
-        except Exception as e:
-            print(f"Error calculating frame: {e}")
+        # placement/height are derived from screen count and size, so there's nothing to store here.
+        total_width = state.display_config.placement
+        height = state.display_config.height
+        if total_width is None or height is None:
+            nav.app.set_message("Screen size or count not set.")
+            return
+        nav.app.set_message(f"Calculated frame size: {total_width}x{height}")
 
     @to_panel
     def set_frame():
@@ -118,7 +111,6 @@ def build_app():
             frame_string = f"{{{{0, 0}}, {{{state.display_config.placement}, {state.display_config.height}}}}}"
             WriteDefaultsAction("TTMenu", "frame", frame_string, value_type="-string").execute()
             WriteDefaultsAction("MultiTouchCalibrate", "frame", frame_string, value_type="-string").execute()
-            SaveStateAction(state).execute()
 
     @to_panel
     def set_custom_res():
@@ -126,22 +118,33 @@ def build_app():
         def _on_input(value):
             if value is None:
                 return
-            state.display_config.size = value
+            value = value.strip()
+            try:
+                state.display_config.size = value
+            except ValueError as e:
+                nav.app.set_message(str(e))
+                return
             to_panel(lambda: SaveStateAction(state).execute())()
+            nav.app.set_message(f"Screen size set to {value}")
         if nav.app:
             nav.app.request_input("Enter custom resolution (e.g., 3840x2160):", _on_input, completer=res_completer)
 
     def set_screen_count():
         def _apply_count(count):
-            state.display_config.count = count
+            try:
+                state.display_config.count = count
+            except ValueError as e:
+                nav.app.set_message(str(e))
+                return False
+            state.vc_config.multi_display = count > 1
             def _writes():
                 print(f"Screen count set to {count}")
                 SaveStateAction(state).execute()
                 if count > 1:
                     WriteDefaultsAction("TTMenu", "thinkHubMediumLineDrawWidth", "10").execute()
                     WriteDefaultsAction("TTMenu", "thinkHubThickLineDrawWidth", "20").execute()
-                    state.vc_config.multi_display = True
             to_panel(_writes)()
+            return True
 
         def _custom_count():
             def _on_input(value):
@@ -152,8 +155,8 @@ def build_app():
                 except ValueError:
                     nav.app.set_message("Invalid number.")
                     return
-                _apply_count(count)
-                nav.back()
+                if _apply_count(count):
+                    nav.back()
             nav.app.request_input("Enter number of displays:", _on_input)
 
         def make_set_count(n):
@@ -222,11 +225,24 @@ def build_app():
         common_res = ["1280x720", "1920x1080", "3840x2160"]
         dock_completer = WordCompleter(common_names, ignore_case=True)
         dock_res_completer = WordCompleter(common_res, ignore_case=True)
+        # Collect into a fresh config and swap it in on 'done', so re-running this
+        # replaces the dock list instead of appending duplicates to it.
+        new_docks = DockConfig()
+
+        if state.dock_config.names:
+            current = ", ".join(f"{n} ({s})" for n, s in zip(state.dock_config.names, state.dock_config.size))
+            nav.app.add_output(f"Current docks: {current}")
+            nav.app.add_output("Docks entered now will replace these when you enter 'done'.")
 
         def ask_dock_name():
             def _on_dock(dock_name):
                 if dock_name is None or dock_name.lower() == 'done':
+                    if not new_docks.names:
+                        nav.app.set_message("No docks entered. Dock config unchanged.")
+                        return
+                    state.dock_config = new_docks
                     to_panel(lambda: SaveStateAction(state).execute())()
+                    nav.app.set_message(f"Saved {new_docks.count} dock(s): {', '.join(new_docks.names)}")
                     return
                 if dock_name not in common_names:
                     def _on_confirm(resp):
@@ -254,12 +270,12 @@ def build_app():
                         if resp is None or resp.lower() not in ('y', 'yes'):
                             ask_res(dock_name)
                             return
-                        state.dock_config.add_dock(dock_name, res)
+                        new_docks.add_dock(dock_name, res)
                         nav.app.add_output(f"Added {dock_name} with resolution: {res}")
                         ask_dock_name()
                     nav.app.request_input(f"'{res}' is not a common resolution. Continue? (y/N):", _on_confirm)
                 else:
-                    state.dock_config.add_dock(dock_name, res)
+                    new_docks.add_dock(dock_name, res)
                     nav.app.add_output(f"Added {dock_name} with resolution: {res}")
                     ask_dock_name()
             nav.app.request_input(f"Enter resolution for {dock_name} (e.g., 1920x1080, or 'done'):", _on_res, completer=dock_res_completer)
@@ -278,8 +294,6 @@ def build_app():
             coord_string = f"'{{{{{current_x}, 0}}, {{{dock_width}, {dock_height}}}}}'"
             coordinates.append(coord_string)
             current_x += dock_width
-        state.dock_config.total_width = current_x
-        SaveStateAction(state).execute()
         WriteDefaultsAction("TTMenu", "thinkHubEnableDock", "1").execute()
         WriteDefaultsAction("TTMenu", "multiViewScreenLabels", state.dock_config.names, value_type="-array").execute()
         WriteDefaultsAction("TTMenu", "multiViewScreenCoordinates", coordinates, value_type="-array").execute()
@@ -436,10 +450,10 @@ def build_app():
                     firmware = version_match.group(1) if version_match else None
                     integrals[str(idx)] = {"serial": serial, "firmware": firmware}
                     nav.app.add_output(f"Integral {idx}: serial={serial}, firmware={firmware}")
-                    SaveStateAction(state).execute()
                 else:
                     nav.app.add_output(f"Serial {serial}: not an Integral (no HdFury response)")
             state.integral_config.integrals = integrals
+            to_panel(lambda: SaveStateAction(state).execute())()
             if not integrals:
                 nav.app.stop_spinner("No Integrals found.")
             else:
@@ -549,7 +563,7 @@ def build_app():
 
     def initialize_software_vc(choice):
         if state.display_config.placement is None or state.display_config.height is None:
-            nav.app.add_output("Error: Screen placement not set. Please set screen in Display menu first.")
+            nav.app.add_output("Error: Screen count and/or size not set. Please set them in Display menu first.")
             return
 
         def _do_vc():
@@ -557,7 +571,7 @@ def build_app():
             height = state.display_config.height - 720
             dock_width = state.dock_config.total_width
             placement = display_width + dock_width
-            multi_string = f"{{{{{placement}, {height}}}}}, {{{{1280, 720}}}}"
+            multi_string = f"{{{{{placement}, {height}}}, {{1280, 720}}}}"
             def _run():
                 if state.display_config.count == 1:
                     WriteDefaultsAction("TTMenu", "screenUpdateOnAllChanges", "1").execute()
@@ -570,7 +584,11 @@ def build_app():
                     WriteDefaultsAction("TTMenu", "ThinkHubZoom", "1").execute()
                 if choice in ("teams", "both"):
                     WriteDefaultsAction("TTMenu", "ThinkHubTeams", "1").execute()
-                    WriteDefaultsAction("automate", "VCCaptureRect", f"{placement},0,1280,720", value_type="-string").execute()
+                    WriteDefaultsAction("com.t1v.automate", "VCCaptureRect", f"{placement},0,1280,720", value_type="-string").execute()
+                state.vc_config.placement = placement
+                state.vc_config.multi_display = state.display_config.count > 1
+                state.vc_config.zoom = state.vc_config.zoom or choice in ("zoom", "both")
+                state.vc_config.teams = state.vc_config.teams or choice in ("teams", "both")
                 SaveStateAction(state).execute()
             to_panel(_run)()
 
@@ -808,8 +826,8 @@ def build_app():
         "pf": ("Disable Firewall", to_panel(lambda: RunCommandAction(
             ["sudo", "/sbin/pfctl", "-d"], success_message="Firewall disabled.").execute())),
         #"b4": ("Load Last Configs", to_panel(lambda: LoadStateAction(state).execute())),
-        #"vs": ("View Current Configurations", to_panel(lambda: RunCommandAction(
-        #    ["cat", "app_state.json"]).execute())),
+        "vs": ("View Current Configurations", to_panel(lambda: RunCommandAction(
+            ["cat", STATE_FILE_PATH], success_message=f"Saved state ({STATE_FILE_PATH}):").execute())),
         "cc": ("Clear Configurations", lambda: nav.push(clear_config_menu)),
         #"dd": ("Delete Configurations", to_panel(lambda: DeleteConfigAction().execute())),
     })

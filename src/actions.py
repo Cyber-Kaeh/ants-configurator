@@ -2,6 +2,7 @@ import subprocess
 import os
 import sys
 import json
+import threading
 from src.models import DisplayConfig, DockConfig, IntegralConfig, VCConfig
 
 
@@ -11,21 +12,34 @@ LOCAL_SERIAL_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "/Loc
 
 STATE_FILE_PATH = os.path.expanduser("~/.config/ants-configurator/app_state.json")
 
+# Saves can come from background threads (e.g. serial scans), so serialize them.
+_save_lock = threading.Lock()
+
 class SaveStateAction:
     def __init__(self, state, file_path=STATE_FILE_PATH):
         self.state = state
         self.file_path = file_path
 
     def execute(self):
-        os.makedirs(os.path.dirname(self.file_path), exist_ok=True)
-        data_to_save = {
-            "display_config": self.state.display_config.to_dict(),
-            "dock_config": self.state.dock_config.to_dict(),
-            "integral_config": self.state.integral_config.to_dict(),
-            "vc_config": self.state.vc_config.to_dict(),
-        }
-        with open(self.file_path, "w") as f:
-            json.dump(data_to_save, f, indent=4)
+        try:
+            with _save_lock:
+                os.makedirs(os.path.dirname(self.file_path), exist_ok=True)
+                data_to_save = {
+                    "display_config": self.state.display_config.to_dict(),
+                    "dock_config": self.state.dock_config.to_dict(),
+                    "integral_config": self.state.integral_config.to_dict(),
+                    "vc_config": self.state.vc_config.to_dict(),
+                }
+                # Write to a temp file then swap it in, so quitting or killing the app
+                # mid-write can't leave an empty or half-written state file behind.
+                tmp_path = f"{self.file_path}.tmp"
+                with open(tmp_path, "w") as f:
+                    json.dump(data_to_save, f, indent=4)
+                    f.flush()
+                    os.fsync(f.fileno())
+                os.replace(tmp_path, self.file_path)
+        except (OSError, TypeError, ValueError) as e:
+            print(f"Error saving configurations: {e}")
 
 class LoadStateAction:
     def __init__(self, state, file_path=STATE_FILE_PATH):
@@ -36,14 +50,14 @@ class LoadStateAction:
         try:
             with open(self.file_path, "r") as f:
                 data = json.load(f)
-                self.state.display_config = DisplayConfig.from_dict(data.get("display_config", {}))
-                self.state.dock_config = DockConfig.from_dict(data.get("dock_config", {}))
-                self.state.integral_config = IntegralConfig.from_dict(data.get("integral_config", {}))
-                self.state.vc_config = VCConfig.from_dict(data.get("vc_config", {}))
+                self.state.display_config = DisplayConfig.from_dict(data.get("display_config") or {})
+                self.state.dock_config = DockConfig.from_dict(data.get("dock_config") or {})
+                self.state.integral_config = IntegralConfig.from_dict(data.get("integral_config") or {})
+                self.state.vc_config = VCConfig.from_dict(data.get("vc_config") or {})
                 print("Last configurations loaded.")
         except FileNotFoundError:
             print("No saved configurations found.")
-        except (json.JSONDecodeError, AttributeError) as e:
+        except (json.JSONDecodeError, AttributeError, TypeError) as e:
             print(f"Error decoding saved configurations: {e}")
 
 
@@ -109,7 +123,8 @@ class WriteDefaultsAction:
         self.value_type = value_type
 
     def execute(self):
-        full_domain = f"com.t1visions.{self.domain}"
+        # Short names like "TTMenu" get the com.t1visions prefix; full domains (e.g. "com.t1v.automate") are used as-is.
+        full_domain = self.domain if self.domain.startswith("com.") else f"com.t1visions.{self.domain}"
         command = ["defaults", "write", full_domain, self.key]
         if self.value_type:
             command.append(self.value_type)

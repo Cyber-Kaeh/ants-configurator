@@ -1,11 +1,10 @@
+import re
 
 
 class DisplayConfig:
-    def __init__(self, count=None, size=None, placement=None, height=None, serial=None, model=None):
+    def __init__(self, count=None, size=None, serial=None, model=None):
         self._count = count
         self._size = size
-        self._placement = placement
-        self._height = height
         self._serial = serial
         self._model = model
 
@@ -25,29 +24,31 @@ class DisplayConfig:
 
     @size.setter
     def size(self, value):
-        if value is not None and value.strip() == "":
-            raise ValueError("Screen size cannot be empty")
+        if value is not None and not re.fullmatch(r"\d+x\d+", value.strip()):
+            raise ValueError("Screen size must be WIDTHxHEIGHT (e.g., 3840x2160)")
         self._size = value
+
+    def _resolution(self):
+        """Parses size (e.g., "3840x2160") into (width, height), or None if unset/invalid."""
+        try:
+            width, height = map(int, self._size.split("x"))
+        except (AttributeError, ValueError):
+            return None
+        return width, height
 
     @property
     def placement(self):
-        return self._placement
-
-    @placement.setter
-    def placement(self, value):
-        if value is not None and value < 0:
-            raise ValueError("Screen placement must be non-negative")
-        self._placement = value
+        """Total width of all displays side by side. Derived from count and size."""
+        res = self._resolution()
+        if res is None or not self.count:
+            return None
+        return res[0] * self.count
 
     @property
     def height(self):
-        return self._height
-
-    @height.setter
-    def height(self, value):
-        if value is not None and value < 0:
-            raise ValueError("Screen height must be non-negative")
-        self._height = value
+        """Display height. Derived from size."""
+        res = self._resolution()
+        return res[1] if res else None
 
     @property
     def serial(self):
@@ -82,19 +83,17 @@ class DisplayConfig:
         return cls(
             count=d.get("count"),
             size=d.get("size"),
-            placement=d.get("placement"),
-            height=d.get("height"),
             serial=d.get("serial"),
+            model=d.get("model"),
         )
 
 
 class DockConfig:
-    def __init__(self, names=None, count=0, size=None, enabled=False, total_width=0):
+    def __init__(self, names=None, count=0, size=None, enabled=False):
         self._names = names or []
         self._count = count
         self._size = size or []
         self._enabled = enabled
-        self._total_width = total_width
 
     @property
     def names(self):
@@ -142,13 +141,8 @@ class DockConfig:
 
     @property
     def total_width(self):
-        return self._total_width
-
-    @total_width.setter
-    def total_width(self, value):
-        if value is not None and value < 0:
-            raise ValueError("Total width must be non-negative")
-        self._total_width = value
+        """Combined width of all docks. Derived from the dock sizes."""
+        return sum(int(s.split("x")[0]) for s in self._size)
 
     def add_dock(self, name, size):
         self._names.append(name)
