@@ -5,10 +5,8 @@ import json
 import threading
 from src.models import DisplayConfig, DockConfig, IntegralConfig, VCConfig
 
-
-SCRIPTS_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../scripts"))
 LOCAL_SCRIPTS_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "/Local/scripts"))
-LOCAL_SERIAL_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "/Local/scripts/serial"))
+LOCAL_SERIAL_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "scripts"))
 
 STATE_FILE_PATH = os.path.expanduser("~/.config/ants-configurator/app_state.json")
 
@@ -156,31 +154,60 @@ class RunCommandAction:
 
 
 class AddCrontabEntryAction:
-    def __init__(self, command, comment=""):
+    def __init__(self, command, comment="", replace_matching=None):
+        """command is a full crontab line: "@reboot <cmd>" or "<5 schedule fields> <cmd>".
+        replace_matching: existing jobs whose command contains this text are replaced, along with their comments."""
         if command.startswith("@reboot "):
+            self.schedule = "@reboot"
             self.command = command[len("@reboot "):]
-            self.reboot = True
         else:
-            self.command = command
-            self.reboot = False
+            fields = command.split(None, 5)
+            self.schedule = " ".join(fields[:5])
+            self.command = fields[5] if len(fields) == 6 else ""
+        self.entry = command
         self.comment = comment
+        self.replace_matching = replace_matching
 
     def execute(self):
-        from crontab import CronTab
+        from crontab import CronTab, CronSlices
+        if not self.command or (self.schedule != "@reboot" and not CronSlices.is_valid(self.schedule)):
+            print(f"Error: not a valid crontab entry: '{self.entry[:60]}'")
+            return
+
         cron = CronTab(user=True)
 
         if any(job.command == self.command for job in cron):
             print(f"Crontab entry already exists: '{self.command[:60]}'")
             return
 
+        replaced = [job for job in cron if self.replace_matching in job.command] if self.replace_matching else []
+        for old_job in replaced:
+            # Delete the blank lines after the old entry here, by position. python-crontab's remove()
+            # tries to, but its list.remove('') takes the first blank line in the whole crontab instead.
+            idx = cron.lines.index(old_job) + 1
+            while idx < len(cron.lines) and cron.lines[idx] == "":
+                del cron.lines[idx]
+            cron.remove(old_job)
+
+        # `crontab -l` ends with a newline, which reads back as a trailing blank line; drop it so
+        # blank lines only appear where we add them below.
+        while cron.lines and cron.lines[-1] == "":
+            cron.lines.pop()
         job = cron.new(command=self.command)
-        if self.reboot:
+        if self.schedule == "@reboot":
             job.every_reboot()
+        else:
+            job.setall(self.schedule)
         if self.comment:
             job_idx = cron.lines.index(job)
             cron.lines.insert(job_idx, f'# {self.comment}')
+            # Start each commented group with a blank line so different features' entries don't run together.
+            if job_idx > 0 and cron.lines[job_idx - 1] != "":
+                cron.lines.insert(job_idx, "")
 
         cron.write()
+        for old_job in replaced:
+            print(f"Removed old crontab entry: '{old_job.command[:60]}'")
         print(f"Added crontab entry: '{self.command[:60]}'")
 
 class RunIntegralSerialAction:

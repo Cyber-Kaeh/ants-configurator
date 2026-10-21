@@ -17,8 +17,9 @@ from src.scripts import integral_crontabs
 
 SCRIPTS_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "scripts"))
 LOCAL_SCRIPTS_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "/Local/scripts"))
-LOCAL_SERIAL_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "/Local/scripts/serial"))
+LOCAL_SERIAL_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "scripts"))
 T1VAPPS_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "/Users/t1user/T1VApps"))
+PQ_DRIVER_URL = "https://contentmedia.t1v.com/Customer/t1/fileAccess/PostImageFiles/"
 
 
 
@@ -219,6 +220,73 @@ def build_app():
             "@reboot /bin/sleep 80; /usr/local/bin/upddprocesses stop -c",
             comment="Disable UPDD Commander so that touch events pass straight to TTMenu",
         ).execute()
+
+    @to_panel
+    def initialize_pq_defaults():
+        WriteDefaultsAction("TTMenu", "MTManagerSearchPriority", "PQNative").execute()
+        WriteDefaultsAction("MultiTouchCalibrate", "MTManagerSearchPriority", "PQNative").execute()
+
+    @to_panel
+    def set_pq_crontab():
+        # The PQ touch resolution is the same as the frame written by Displays > Set frame.
+        width, height = state.display_config.placement, state.display_config.height
+        if width is None or height is None:
+            width, height = "XXXX", "XXXX"
+        AddCrontabEntryAction(
+            "@reboot /bin/sleep 90; /Local/scripts/checkPQLabsLog.sh fix",
+            comment="verifies PQ is physically connected to the computer, and that TTMenu is communicating with the touch driver",
+        ).execute()
+        AddCrontabEntryAction("*/5 6-22 * * * /Local/scripts/checkPQLabsLog.sh &> /dev/null").execute()
+        AddCrontabEntryAction(
+            f"*/1 * * * * /bin/bash /Local/scripts/checkPQLabsResolution.sh {width} {height} &> /dev/null",
+            comment="checks PQ resolution and alerts Support if it cannot correct",
+            replace_matching="checkPQLabsResolution.sh",
+        ).execute()
+        if width == "XXXX":
+            print("WARNING: Frame not set (screen count and/or size missing in Displays Configuration).")
+            print("The PQ resolution check is using the filler XXXX XXXX.")
+            print("Set the screen count and size, then run Set PQ Crontab again to replace it.")
+            nav.app.set_message("Frame not set: PQ resolution check is using filler XXXX XXXX.")
+        else:
+            print(f"PQ resolution check uses the frame size: {width} {height}")
+
+    def download_pq_driver():
+        # hw.optional.arm64 is 1 on Apple Silicon even under Rosetta, where `uname -m` would report x86_64.
+        sysctl = subprocess.run(["/usr/sbin/sysctl", "-n", "hw.optional.arm64"], capture_output=True, text=True)
+        if sysctl.stdout.strip() == "1":
+            arch, driver_file, pkg_pattern = "Apple Silicon (arm64)", "mt_driver_1.0.0.1(native).dmg", "installer_mt_driver_*.pkg"
+        else:
+            arch, driver_file, pkg_pattern = "Intel (x86_64)", "mt_driver_4_2209.dmg", "mt_platform_setup_*.pkg"
+        dest = os.path.join(os.path.expanduser("~/Downloads"), driver_file)
+        install_hint = f"Open it and run the {pkg_pattern} installer inside to install the driver."
+        nav.app.add_output(f"Detected {arch}.")
+
+        if os.path.exists(dest):
+            nav.app.add_output(f"PQ driver already downloaded: {dest}")
+            nav.app.add_output(install_hint)
+            return
+
+        def _run():
+            nav.app.start_spinner(f"Downloading {driver_file}...")
+            os.makedirs(os.path.dirname(dest), exist_ok=True)
+            # Download under a temp name so a failed or interrupted download never looks finished.
+            part_path = f"{dest}.part"
+            result = subprocess.run(
+                ["/usr/bin/curl", "-k", "-f", "-sS", "-u", "support:T1edcnow14",
+                 PQ_DRIVER_URL + driver_file, "-o", part_path],
+                capture_output=True, text=True,
+            )
+            if result.returncode != 0:
+                if os.path.exists(part_path):
+                    os.remove(part_path)
+                nav.app.add_output(f"Download failed: {result.stderr.strip()}")
+                nav.app.stop_spinner("PQ driver download failed.")
+                return
+            os.replace(part_path, dest)
+            nav.app.add_output(f"PQ driver downloaded to: {dest}")
+            nav.app.add_output(install_hint)
+            nav.app.stop_spinner("PQ driver downloaded.")
+        threading.Thread(target=_run, daemon=True).start()
 
     def configure_docks():
         common_names = ["Dock1", "Dock2", "Dock3", "Dock4", "Dock", "MTR"]
@@ -669,7 +737,7 @@ def build_app():
     integral_menu = Menu("Integral Menu", {})
     touch_menu = Menu("Touch Menu", {})
     uppd_menu = Menu("UPPD Menu", {})
-    pq_menu = Menu("HID Menu", {})
+    pq_menu = Menu("PQ Menu", {})
     software_vc_menu = Menu("Software VC Menu", {})
     dock_menu = Menu("Dock Menu", {})
     other_defaults_menu = Menu("Other Misc. Defaults", {})
@@ -725,8 +793,9 @@ def build_app():
     })
 
     pq_menu.commands.update({
-        "1": ("Set Defaults", to_panel(lambda: RunCommandAction(
-            [os.path.join(SCRIPTS_DIR, "tester.sh")]).execute())),
+        "1": ("Download Driver", lambda: download_pq_driver()),
+        "2": ("Set Defaults", lambda: initialize_pq_defaults()),
+        "3": ("Set PQ Crontab", lambda: set_pq_crontab()),
     })
 
     touch_menu.commands.update({
