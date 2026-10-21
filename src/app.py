@@ -456,15 +456,15 @@ def build_app():
         def _on_selected(key):
             serial = state.integral_config.integrals[key]['serial']
             nav.app.add_output(f"Interrogating Integral with Serial ID: {serial}")
-            nav.app.add_output("Starting interrogation (be patient, ~1 minute)...")
+            nav.app.add_output("Starting interrogation... Just a moment...")
             nav.app.start_spinner("Interrogating Integral...")
-            script_path = os.path.join(LOCAL_SCRIPTS_DIR, "integralStatus.py")
+            script_path = os.path.join(LOCAL_SERIAL_DIR, "integralSerial.py")
             def _on_done(rc):
                 nav.app.stop_spinner(
                     "Interrogate complete." if rc == 0 else f"Interrogate failed (exit code {rc})."
                 )
             run_streaming(
-                [sys.executable, script_path, "--serial", f"/dev/tty.usbserial-{serial}", "--interrogate"],
+                [sys.executable, script_path, f"/dev/tty.usbserial-{serial}", "interrogate"],
                 on_done=_on_done,
             )
         select_integral(_on_selected)
